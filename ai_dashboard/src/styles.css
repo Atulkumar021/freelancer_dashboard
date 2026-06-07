@@ -1,0 +1,219 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-display: "Inter", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-brand: "Playfair Display", Georgia, serif;
+}
+
+:root {
+  --radius: 0.5rem;
+
+  /* ── Page & content ─────────────────────── */
+  --background:         #f4f5f7;
+  --foreground:         #111827;
+
+  --card:               #ffffff;
+  --card-foreground:    #111827;
+
+  --popover:            #ffffff;
+  --popover-foreground: #111827;
+
+  --primary:            #111827;
+  --primary-foreground: #ffffff;
+
+  --secondary:          #f9fafb;
+  --secondary-foreground:#374151;
+
+  --muted:              #f3f4f6;
+  --muted-foreground:   #6b7280;
+
+  --accent:             #c9a84c;
+  --accent-foreground:  #111827;
+
+  --destructive:        #dc2626;
+  --destructive-foreground: #ffffff;
+
+  --success:            #16a34a;
+  --success-foreground: #ffffff;
+
+  --warning:            #d97706;
+  --warning-foreground: #111827;
+
+  /* ── Gold accent ─────────────────────────── */
+  --gold:               #b8960a;
+  --gold-soft:          #d4ac3a;
+
+  /* ── Borders & inputs ───────────────────── */
+  --border:             #e5e7eb;
+  --input:              #e5e7eb;
+  --ring:               #c9a84c;
+
+  /* ── Sidebar (deep navy) ─────────────────── */
+  --sidebar:                  #0d1117;
+  --sidebar-foreground:       #cbd5e1;
+  --sidebar-primary:          #c9a84c;
+  --sidebar-primary-foreground:#0d1117;
+  --sidebar-accent:           #1a2233;
+  --sidebar-accent-foreground:#f1f5f9;
+  --sidebar-border:           #1e2a3a;
+  --sidebar-ring:             #c9a84c;
+
+  /* ── Shared gradients / shadows ─────────── */
+  --gradient-gold:      linear-gradient(135deg, #a6905f, #c9a84c, #a6905f);
+  --gradient-gold-soft: linear-gradient(135deg, rgba(166,144,95,.08), rgba(201,168,76,.12), rgba(166,144,95,.08));
+  --gradient-dark:      linear-gradient(135deg, #0d1117, #1a2233);
+  --shadow-sm:          0 1px 2px rgba(0,0,0,.05);
+  --shadow-card:        0 1px 3px rgba(0,0,0,.06), 0 2px 6px rgba(0,0,0,.04);
+  --shadow-elegant:     0 1px 3px rgba(0,0,0,.04), 0 8px 24px -8px rgba(166,144,95,.12);
+  --shadow-gold:        0 4px 20px -4px rgba(201,168,76,.35);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+    box-sizing: border-box;
+  }
+  html {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+  body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  #root {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+  /* Professional sans-serif for all headings */
+  h1 { font-size: 1.5rem;   font-weight: 600; letter-spacing: -0.025em; line-height: 1.25; }
+  h2 { font-size: 1.25rem;  font-weight: 600; letter-spacing: -0.02em;  line-height: 1.3;  }
+  h3 { font-size: 1rem;     font-weight: 600; letter-spacing: -0.015em; line-height: 1.4;  }
+  h4 { font-size: 0.875rem; font-weight: 600; letter-spacing: -0.01em;  line-height: 1.5;  }
+  /* Reserve Playfair Display for brand text only via .font-brand */
+  .font-brand { font-family: "Playfair Display", Georgia, serif; }
+}
+
+@layer utilities {
+  .bg-gradient-gold {
+    background: var(--gradient-gold);
+  }
+  .bg-gradient-gold-soft {
+    background: var(--gradient-gold-soft);
+  }
+  .bg-gradient-dark {
+    background: var(--gradient-dark);
+  }
+  .text-gradient-gold {
+    background: var(--gradient-gold);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .border-gradient-gold {
+    border-image: var(--gradient-gold) 1;
+  }
+  .shadow-elegant {
+    box-shadow: var(--shadow-elegant);
+  }
+  .shadow-gold {
+    box-shadow: var(--shadow-gold);
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--gradient-gold);
+    border-radius: 3px;
+  }
+  /* ── Dark panels (used in hero / AI briefing) ── */
+  .glass-dark {
+    background: linear-gradient(135deg, rgba(13,17,23,0.96), rgba(26,34,51,0.92));
+    border: 1px solid rgba(201,168,76,0.15);
+  }
+  .glass-gold {
+    background: rgba(201,168,76,0.08);
+    border: 1px solid rgba(201,168,76,0.20);
+  }
+  .glow-gold {
+    box-shadow: 0 0 0 1px rgba(201,168,76,0.20), 0 8px 32px -12px rgba(201,168,76,0.25);
+  }
+  /* Subtle dot-grid used on dark hero panels */
+  .grid-bg {
+    background-image:
+      radial-gradient(circle, rgba(201,168,76,0.18) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  .radial-gold {
+    background: radial-gradient(55% 50% at 85% 5%, rgba(201,168,76,0.18), transparent 60%),
+                radial-gradient(45% 45% at 5% 95%, rgba(166,144,95,0.12), transparent 60%);
+  }
+  .text-gradient-platinum {
+    background: linear-gradient(135deg, #ffffff 0%, #c9a84c 45%, #ffffff 85%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .ring-gold-soft { box-shadow: inset 0 0 0 1px rgba(201,168,76,0.25); }
+  .pulse-ring { /* perf: static */ }
+  .shimmer {
+    background: linear-gradient(90deg, rgba(201,168,76,0.10), rgba(201,168,76,0.35), rgba(201,168,76,0.10));
+  }
+  /* Status indicator helpers */
+  .status-filed   { color: var(--color-success); background: rgba(22,163,74,.08);  border-color: rgba(22,163,74,.20);  }
+  .status-overdue { color: var(--color-destructive); background: rgba(220,38,38,.08); border-color: rgba(220,38,38,.20); }
+  .status-due     { color: #d97706; background: rgba(217,119,6,.08); border-color: rgba(217,119,6,.20); }
+  .float-y, .spin-slow { /* removed for perf */ }
+}
