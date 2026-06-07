@@ -11,7 +11,7 @@ export interface ConnectionStatus {
   refresh:   () => void;
 }
 
-const BACKEND_URL = 'http://localhost:3001';
+const BACKEND_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 const COMPANY_ID  = 'cmp_001';
 const POLL_MS     = 15_000;
 

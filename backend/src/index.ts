@@ -26,8 +26,18 @@ const app  = express();
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
 
 /* ── Middleware ─────────────────────────────────────────────────────────── */
+const allowedOrigins = [
+  'http://localhost:8080',
+  'http://localhost:3000',
+  'http://localhost:4173',
+  'https://ai-dashboard-sigma-five.vercel.app',
+  ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : []),
+];
 app.use(cors({
-  origin: ['http://localhost:8080', 'http://localhost:3000', 'https://ai-dashboard-sigma-five.vercel.app'],
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error(`CORS: origin ${origin} not allowed`));
+  },
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
