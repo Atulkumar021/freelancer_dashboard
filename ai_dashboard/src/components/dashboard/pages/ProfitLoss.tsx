@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import {
-  Download, TrendingDown, TrendingUp, ChevronRight,
-  BarChart2, AlertTriangle, Edit3,
+  Download, TrendingDown, TrendingUp,
+  BarChart2, AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Panel, PageHeader, SectionTitle } from "../Primitives";
 import { StatCard } from "../StatCard";
-import { BarsCompare, MultiLine, TrendArea } from "../Charts";
+import { BarsCompare, MultiLine } from "../Charts";
 import { api, fmt, monthName, toLakhs } from "@/lib/api";
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
@@ -22,8 +22,6 @@ type PnLRow = {
 };
 
 /* ── Helpers ────────────────────────────────────────────────────────────── */
-function zv(): LineValues { return { mtd: 0, prior: 0, smpy: 0, ytd: 0, pytd: 0, budget: 0 }; }
-
 function pick(obj: any, key: string, fallback = 0): number { return obj?.[key] ?? fallback; }
 
 function VarBadge({ current, prior, isExpense = false, tiny = false }: {
@@ -42,15 +40,6 @@ function VarBadge({ current, prior, isExpense = false, tiny = false }: {
   );
 }
 
-function Var({ v, budget = false }: { v: number; budget?: boolean }) {
-  if (v === 0) return <span className="text-muted-foreground">—</span>;
-  const pos = v >= 0;
-  return (
-    <span className={`font-semibold ${budget ? (pos ? "text-emerald-600" : "text-red-600") : (pos ? "text-emerald-600" : "text-red-600")}`}>
-      {v >= 0 ? "+" : ""}{fmt(v)}
-    </span>
-  );
-}
 
 function SecLabel({ letter, bg, text }: { letter: string; bg: string; text: string }) {
   return (
@@ -66,19 +55,6 @@ function fmtPct(n: number) {
 
 /* ── Build P&L rows from API data ───────────────────────────────────────── */
 function buildRows(s: any, mtd: any, prior: any, py: any, pyMtd: any, bgt: any): PnLRow[] {
-  function row(id: string, label: string, level: 0 | 1 | 2, opts?: Partial<PnLRow>): PnLRow {
-    const k  = id;
-    const vs: LineValues = {
-      mtd:    pick(mtd,   k),
-      prior:  pick(prior, k),
-      smpy:   pick(pyMtd, k),
-      ytd:    pick(s,     k),
-      pytd:   pick(py,    k),
-      budget: pick(bgt,   k),
-    };
-    return { id, label, level, values: vs, ...opts };
-  }
-
   const revenue     = pick(s, "revenue");
   const otherInc    = pick(s, "otherIncome");
   const totalInc    = revenue + otherInc;
@@ -153,7 +129,6 @@ export function ProfitLoss() {
   const [data,        setData]        = useState<any>(null);
   const [loading,     setLoading]     = useState(true);
   const [revTab,      setRevTab]      = useState(0);
-  const [expSection,  setExpSection]  = useState<string | null>(null);
   const [varComments, setVarComments] = useState<Record<string, { reason: string; comment: string; action: string }>>({});
 
   useEffect(() => {
@@ -196,6 +171,12 @@ export function ProfitLoss() {
     ];
   }, [data]);
 
+  const customerRevData = useMemo(() =>
+    (data?.salesByParty ?? []).slice(0, 10).map((p: any) => ({
+      name:    (p._id?.length ?? 0) > 16 ? p._id.slice(0, 14) + "…" : p._id,
+      revenue: toLakhs(p.total ?? 0),
+    })), [data]);
+
   /* ── Early return ────────────────────────────────────────────────────── */
   if (loading) {
     return (
@@ -227,7 +208,6 @@ export function ProfitLoss() {
   const ebitda      = s.ebitda         ?? 0;
   const ebitdaPct   = revenue > 0 ? (ebitda / revenue * 100) : 0;
   const ebit        = s.ebit   ?? (ebitda - depr);
-  const ebitPct     = revenue > 0 ? (ebit / revenue * 100) : 0;
   const pbt         = s.pbt    ?? (ebit - finCost);
   const tax         = s.taxExpense ?? 0;
   const pat         = s.netProfit  ?? (pbt - tax);
@@ -259,12 +239,6 @@ export function ProfitLoss() {
     "By Region", "By Salesperson", "By Project",
     "Recurring vs Non-Recurring", "New Customers", "Existing Customers",
   ];
-
-  const customerRevData = useMemo(() =>
-    (data?.salesByParty ?? []).slice(0, 10).map((p: any) => ({
-      name:  (p._id?.length ?? 0) > 16 ? p._id.slice(0, 14) + "…" : p._id,
-      revenue: toLakhs(p.total ?? 0),
-    })), [data]);
 
   /* Expense as % of revenue */
   const expPctRows = pnlRows
