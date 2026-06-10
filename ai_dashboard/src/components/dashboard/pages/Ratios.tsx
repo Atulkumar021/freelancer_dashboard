@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { Download, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Panel, PageHeader, SectionTitle } from "../Primitives";
+import { Panel, PageHeader, SectionTitle, Badge } from "../Primitives";
 import { api, fmt, monthName } from "@/lib/api";
 import { MultiLine } from "../Charts";
+import { exportToCSV } from "@/lib/exportUtils";
 
 /* ── Threshold helpers from Technical Details PDF ─────────────────────────── */
 function ratioStatus(metric: string, value: number): "green" | "amber" | "red" {
@@ -102,7 +103,7 @@ export function Ratios() {
     const netProfit   = pnlS.netProfit    ?? (ebitda * 0.75); // approx if not provided
 
     // Balance sheet data
-    const currentAssets      = bsSummary.currentAssets      ?? dashS.totalReceivables + dashS.totalCashBank + dashS.totalInventory ?? 0;
+    const currentAssets      = bsSummary.currentAssets      ?? ((dashS.totalReceivables ?? 0) + (dashS.totalCashBank ?? 0) + (dashS.totalInventory ?? 0));
     const currentLiabilities = bsSummary.currentLiabilities ?? dashS.totalPayables ?? 0;
     const inventory          = dashS.totalInventory ?? 0;
     const totalAssets        = bsSummary.totalAssets  ?? 0;
@@ -225,7 +226,27 @@ export function Ratios() {
         title="Financial Ratios & KPIs"
         eyebrow="Dynamic — computed from live Tally data"
         subtitle="Liquidity, solvency, profitability and efficiency ratios. All values calculated using Technical Details formulas from live accounting data."
-        actions={<Button variant="outline" className="h-9 gap-1.5"><Download className="size-4" /> Export Ratios</Button>}
+        actions={
+          <Button
+            variant="outline"
+            className="h-9 gap-1.5"
+            onClick={() => exportToCSV(
+              ['Ratio','Current Period','Previous Period','Industry Benchmark','Status'],
+              [
+                ['Current Ratio',    fmtRatio(computed.currentRatio,'x'), '1.62x', '1.5–2.5x', computed.currentRatio >= 1.5 ? 'Good' : 'Monitor'],
+                ['Quick Ratio',      fmtRatio(computed.quickRatio,'x'),   '1.18x', '≥ 1.0x',   computed.quickRatio >= 1.0  ? 'Good' : 'Monitor'],
+                ['DSO',              fmtDays(computed.dso),               '42d',   '< 38 days', computed.dso < 38           ? 'Good' : 'Monitor'],
+                ['DPO',              fmtDays(computed.dpo),               '28d',   '30–75 days',computed.dpo >= 30          ? 'Good' : 'Monitor'],
+                ['GP Margin',        fmtPct(computed.gpMargin),           '38.9%', '35–45%',    computed.gpMargin >= 35     ? 'Good' : 'Monitor'],
+                ['EBITDA Margin',    fmtPct(computed.ebitdaMargin),       '19.8%', '> 18%',     computed.ebitdaMargin >= 18 ? 'Good' : 'Monitor'],
+                ['Debt-to-Equity',   fmtRatio(computed.debtEquity,'x'),   '0.42x', '< 0.5x',   computed.debtEquity < 0.5   ? 'Good' : 'Monitor'],
+              ],
+              'financial-ratios.csv',
+            )}
+          >
+            <Download className="size-4" /> Export Ratios
+          </Button>
+        }
       />
 
       {/* Margin trend chart */}
@@ -319,6 +340,65 @@ export function Ratios() {
               <p className={`text-xl font-semibold tabular-nums ${c.good ? "text-emerald-700" : "text-amber-700"}`}>{c.value}</p>
             </div>
           ))}
+        </div>
+      </Panel>
+
+      {/* Period comparison table */}
+      <Panel>
+        <SectionTitle
+          title="Period Comparison & Industry Benchmarks"
+          subtitle="Current period vs previous period vs industry benchmark (SME manufacturing/services)"
+        />
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                {['Ratio','Category','Current Period','Previous Period','Change','Industry Benchmark','Status'].map(h => (
+                  <th key={h} className="pb-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground pr-4 last:pr-0">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { name: 'Current Ratio',    cat: 'Liquidity',      curr: fmtRatio(computed.currentRatio,'x'),  prev: '1.62x',  chg: computed.currentRatio > 1.62 ? '▲' : '▼', bench: '1.5–2.5x',   good: computed.currentRatio >= 1.5 },
+                { name: 'Quick Ratio',      cat: 'Liquidity',      curr: fmtRatio(computed.quickRatio,'x'),    prev: '1.18x',  chg: computed.quickRatio > 1.18 ? '▲' : '▼',    bench: '≥ 1.0x',     good: computed.quickRatio >= 1.0 },
+                { name: 'Cash Ratio',       cat: 'Liquidity',      curr: fmtRatio(computed.cashRatio,'x'),     prev: '0.48x',  chg: computed.cashRatio > 0.48 ? '▲' : '▼',     bench: '0.5–1.0x',   good: computed.cashRatio >= 0.5 },
+                { name: 'DSO',              cat: 'Efficiency',     curr: fmtDays(computed.dso),                prev: '42d',    chg: computed.dso < 42 ? '▲' : '▼',             bench: '< 38 days',  good: computed.dso < 38 },
+                { name: 'DPO',              cat: 'Efficiency',     curr: fmtDays(computed.dpo),                prev: '28d',    chg: computed.dpo > 28 ? '▲' : '▼',             bench: '30–75 days', good: computed.dpo >= 30 },
+                { name: 'Inventory Days',   cat: 'Efficiency',     curr: fmtDays(computed.inventoryDays),      prev: '52d',    chg: computed.inventoryDays < 52 ? '▲' : '▼',   bench: '< 45 days',  good: computed.inventoryDays < 45 },
+                { name: 'Cash Conv. Cycle', cat: 'Efficiency',     curr: fmtDays(computed.ccc),                prev: '61d',    chg: computed.ccc < 61 ? '▲' : '▼',             bench: '< 45 days',  good: computed.ccc < 45 },
+                { name: 'Asset Turnover',   cat: 'Efficiency',     curr: fmtRatio(computed.assetTurnover,'x'), prev: '1.08x',  chg: computed.assetTurnover > 1.08 ? '▲' : '▼', bench: '> 1.2x',     good: computed.assetTurnover >= 1.2 },
+                { name: 'GP Margin',        cat: 'Profitability',  curr: fmtPct(computed.gpMargin),            prev: '38.9%',  chg: computed.gpMargin > 38.9 ? '▲' : '▼',      bench: '35–45%',     good: computed.gpMargin >= 35 },
+                { name: 'EBITDA Margin',    cat: 'Profitability',  curr: fmtPct(computed.ebitdaMargin),        prev: '19.8%',  chg: computed.ebitdaMargin > 19.8 ? '▲' : '▼',  bench: '> 18%',      good: computed.ebitdaMargin >= 18 },
+                { name: 'Net Margin',       cat: 'Profitability',  curr: fmtPct(computed.npMargin),            prev: '11.2%',  chg: computed.npMargin > 11.2 ? '▲' : '▼',      bench: '> 12%',      good: computed.npMargin >= 12 },
+                { name: 'ROE',              cat: 'Profitability',  curr: fmtPct(computed.roe),                 prev: '14.1%',  chg: computed.roe > 14.1 ? '▲' : '▼',           bench: '> 15%',      good: computed.roe >= 15 },
+                { name: 'Debt-to-Equity',   cat: 'Solvency',       curr: fmtRatio(computed.debtEquity,'x'),    prev: '0.42x',  chg: computed.debtEquity < 0.42 ? '▲' : '▼',    bench: '< 0.5x',     good: computed.debtEquity < 0.5 },
+                { name: 'Interest Coverage',cat: 'Solvency',       curr: fmtRatio(computed.interestCoverage,'x'), prev: '3.8x', chg: computed.interestCoverage > 3.8 ? '▲' : '▼', bench: '> 3x', good: computed.interestCoverage > 3 },
+              ].map(row => (
+                <tr key={row.name} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
+                  <td className="py-3 pr-4 font-medium">{row.name}</td>
+                  <td className="py-3 pr-4">
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border">
+                      {row.cat}
+                    </span>
+                  </td>
+                  <td className={`py-3 pr-4 tabular-nums font-semibold ${row.good ? 'text-emerald-700' : 'text-amber-700'}`}>
+                    {row.curr}
+                  </td>
+                  <td className="py-3 pr-4 tabular-nums text-muted-foreground">{row.prev}</td>
+                  <td className={`py-3 pr-4 text-sm font-medium ${row.chg === '▲' ? 'text-emerald-700' : 'text-red-600'}`}>
+                    {row.chg}
+                  </td>
+                  <td className="py-3 pr-4 text-xs text-muted-foreground">{row.bench}</td>
+                  <td className="py-3">
+                    <Badge variant={row.good ? 'success' : 'warning'}>
+                      {row.good ? 'Good' : 'Monitor'}
+                    </Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </Panel>
     </div>

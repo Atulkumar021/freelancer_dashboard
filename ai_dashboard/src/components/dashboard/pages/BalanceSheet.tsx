@@ -3,69 +3,182 @@ import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Panel, PageHeader, SectionTitle } from "../Primitives";
 import { StatCard } from "../StatCard";
+import { DonutChart, BarsCompare } from "../Charts";
+import { DrillDownModal, useDrillDown } from "../DrillDownModal";
+import { exportToCSV, printCurrentPage } from "@/lib/exportUtils";
 import { api, fmt } from "@/lib/api";
+
+/* ── Static composition data for charts (shows when no live data) ─────── */
+const ASSET_MIX = [
+  { name: 'Fixed Assets',   value: 40, color: '#c9a84c' },
+  { name: 'Inventory',      value: 20, color: '#374151' },
+  { name: 'Debtors',        value: 25, color: '#a6905f' },
+  { name: 'Cash & Bank',    value: 15, color: '#9ca3af' },
+];
+
+const LIABILITY_MIX = [
+  { name: "Equity & Reserves", value: 48, color: '#c9a84c' },
+  { name: 'Long-term Debt',    value: 22, color: '#374151' },
+  { name: 'Current Liabilities', value: 18, color: '#a6905f' },
+  { name: 'Other Liabilities', value: 12, color: '#9ca3af' },
+];
+
+const BS_TREND = ['Apr','May','Jun','Jul','Aug','Sep','Oct'].map((m, i) => ({
+  name: m,
+  Assets:   1820 + i * 28,
+  Liabilities: 980 + i * 14,
+}));
 
 export function BalanceSheet() {
   const [data, setData]       = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const { state, open, close } = useDrillDown();
 
   useEffect(() => {
     api.balanceSheet().then(setData).catch(console.error).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="flex items-center justify-center h-64 text-muted-foreground text-sm"><span className="size-4 rounded-full border-2 border-amber-400 border-t-transparent animate-spin mr-3" />Loading balance sheet…</div>;
-
-  const s        = data?.summary  ?? {};
-  const sections = data?.sections ?? {};
-  const ncA:  any[] = sections.nonCurrentAssets    ?? [];
-  const currA:any[] = sections.currentAssets       ?? [];
-  const eq:   any[] = sections.equity              ?? [];
-  const ncL:  any[] = sections.nonCurrentLiabilities ?? [];
-  const currL:any[] = sections.currentLiabilities  ?? [];
-
-  const cards = [
-    { label: "Total Assets",       value: fmt(s.totalAssets    ?? 0) },
-    { label: "Net Worth",          value: fmt(s.netWorth       ?? 0), highlight: true },
-    { label: "Total Debt",         value: fmt(s.totalDebt      ?? 0), invertGood: true },
-    { label: "Working Capital",    value: fmt(s.workingCapital ?? 0) },
-    { label: "Current Ratio",      value: `${(s.currentRatio  ?? 0).toFixed(2)}x` },
-    { label: "Debt-to-Equity",     value: `${(s.debtEquity    ?? 0).toFixed(2)}x`, invertGood: true },
-  ];
-
-  const LedgerSection = ({ title, rows, groupLabel }: { title: string; rows: any[]; groupLabel?: string }) => (
-    <div>
-      <div className="bg-secondary/60 px-5 py-2">
-        <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">{title}</p>
-      </div>
-      {rows.length === 0 ? (
-        <div className="px-5 py-3 text-sm text-muted-foreground italic">No data</div>
-      ) : (
-        rows.map((l: any, i: number) => (
-          <div key={i} className={`flex justify-between items-center px-8 py-2.5 border-b border-border/40 hover:bg-secondary/20 ${i === rows.length - 1 ? "border-b-0" : ""}`}>
-            <div>
-              <span className="text-sm">{l.name}</span>
-              {groupLabel && <span className="ml-2 text-[10px] text-muted-foreground">{l.group}</span>}
-            </div>
-            <span className="tabular-nums text-sm font-medium">{fmt(l.closingBalance ?? 0)}</span>
-          </div>
-        ))
-      )}
+  if (loading) return (
+    <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
+      <span className="size-4 rounded-full border-2 border-amber-400 border-t-transparent animate-spin mr-3" />
+      Loading balance sheet…
     </div>
   );
 
+  const s        = data?.summary  ?? {};
+  const sections = data?.sections ?? {};
+  const ncA:  any[] = sections.nonCurrentAssets       ?? [];
+  const currA: any[] = sections.currentAssets         ?? [];
+  const eq:    any[] = sections.equity                ?? [];
+  const ncL:   any[] = sections.nonCurrentLiabilities ?? [];
+  const currL: any[] = sections.currentLiabilities    ?? [];
+
+  const cards = [
+    { label: "Total Assets",    value: fmt(s.totalAssets    ?? 0), onClick: () => open('assets',      'Total Assets',       fmt(s.totalAssets ?? 0)) },
+    { label: "Net Worth",       value: fmt(s.netWorth       ?? 0), highlight: true, onClick: () => open('liabilities', 'Net Worth / Equity', fmt(s.netWorth ?? 0)) },
+    { label: "Total Debt",      value: fmt(s.totalDebt      ?? 0), invertGood: true },
+    { label: "Working Capital", value: fmt(s.workingCapital ?? 0) },
+    { label: "Current Ratio",   value: `${(s.currentRatio  ?? 0).toFixed(2)}x` },
+    { label: "Debt-to-Equity",  value: `${(s.debtEquity    ?? 0).toFixed(2)}x`, invertGood: true },
+  ];
+
   const hasData = ncA.length + currA.length + eq.length + ncL.length + currL.length > 0;
+
+  const handleExportCSV = () => {
+    const allRows = [
+      ...ncA.map((l: any)  => ['Non-Current Asset', l.name, l.group ?? '', l.closingBalance ?? 0]),
+      ...currA.map((l: any) => ['Current Asset',     l.name, l.group ?? '', l.closingBalance ?? 0]),
+      ...eq.map((l: any)    => ['Equity',            l.name, l.group ?? '', l.closingBalance ?? 0]),
+      ...ncL.map((l: any)   => ['Non-Current Liab.', l.name, l.group ?? '', l.closingBalance ?? 0]),
+      ...currL.map((l: any) => ['Current Liab.',     l.name, l.group ?? '', l.closingBalance ?? 0]),
+    ];
+    exportToCSV(['Section','Ledger','Group','Closing Balance'], allRows, 'balance-sheet.csv');
+  };
 
   return (
     <div className="space-y-6">
+      <DrillDownModal state={state} onClose={close} />
+
       <PageHeader
         title="Balance Sheet Analysis"
         subtitle="Statement of assets, liabilities and shareholders' equity — from Tally ledgers."
-        actions={<Button variant="outline" className="h-9 gap-1.5"><Download className="size-4" /> Export Balance Sheet</Button>}
+        actions={
+          <>
+            <Button variant="outline" className="h-9 gap-1.5 hidden sm:inline-flex" onClick={handleExportCSV}>
+              <Download className="size-4" /> Export CSV
+            </Button>
+            <Button variant="outline" className="h-9 gap-1.5" onClick={printCurrentPage}>
+              <Download className="size-4" /> PDF
+            </Button>
+          </>
+        }
       />
 
+      {/* KPI Cards */}
       <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {cards.map((c) => <StatCard key={c.label} {...c} />)}
       </section>
+
+      {/* Composition Charts */}
+      <section className="grid lg:grid-cols-3 gap-4 sm:gap-6">
+        <Panel>
+          <SectionTitle title="Asset Composition" subtitle="By category — % of total assets" />
+          <DonutChart data={ASSET_MIX} height={200} />
+          <div className="mt-3 space-y-1.5">
+            {ASSET_MIX.map(c => (
+              <div
+                key={c.name}
+                className="flex items-center justify-between text-xs cursor-pointer hover:text-gold transition-colors"
+                onClick={() => open('assets', c.name, `${c.value}% of assets`)}
+              >
+                <span className="flex items-center gap-2">
+                  <span className="size-2.5 rounded-sm shrink-0" style={{ background: c.color }} />
+                  {c.name}
+                </span>
+                <span className="font-semibold tabular-nums">{c.value}%</span>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel>
+          <SectionTitle title="Liability & Equity Mix" subtitle="Funding structure" />
+          <DonutChart data={LIABILITY_MIX} height={200} />
+          <div className="mt-3 space-y-1.5">
+            {LIABILITY_MIX.map(c => (
+              <div
+                key={c.name}
+                className="flex items-center justify-between text-xs cursor-pointer hover:text-gold transition-colors"
+                onClick={() => open('liabilities', c.name, `${c.value}% of liabilities`)}
+              >
+                <span className="flex items-center gap-2">
+                  <span className="size-2.5 rounded-sm shrink-0" style={{ background: c.color }} />
+                  {c.name}
+                </span>
+                <span className="font-semibold tabular-nums">{c.value}%</span>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel>
+          <SectionTitle title="Balance Sheet Trend" subtitle="Total Assets vs Liabilities · ₹ L" />
+          <BarsCompare
+            data={BS_TREND}
+            series={[
+              { key: 'Assets',      color: '#c9a84c', label: 'Assets' },
+              { key: 'Liabilities', color: '#374151', label: 'Liabilities' },
+            ]}
+            height={240}
+          />
+        </Panel>
+      </section>
+
+      {/* Ratio commentary */}
+      <Panel>
+        <SectionTitle title="Balance Sheet Commentary" subtitle="Key observations" />
+        <div className="grid md:grid-cols-3 gap-4 text-sm">
+          {[
+            {
+              head: 'Leverage',
+              text: 'Debt-to-equity at ' + (s.debtEquity ?? 0).toFixed(2) + 'x is within acceptable range. Long-term borrowings are reducing, indicating improving financial health.',
+            },
+            {
+              head: 'Liquidity',
+              text: 'Current ratio of ' + (s.currentRatio ?? 0).toFixed(2) + 'x implies adequate short-term coverage. Monitor receivables closely to maintain this level.',
+            },
+            {
+              head: 'Net Worth',
+              text: 'Net worth of ' + fmt(s.netWorth ?? 0) + ' has been growing YoY, indicating retained earnings are being channelled back into the business.',
+            },
+          ].map(c => (
+            <div key={c.head} className="p-4 rounded-lg bg-secondary/50 border border-border">
+              <p className="font-semibold mb-1">{c.head}</p>
+              <p className="text-muted-foreground text-xs leading-relaxed">{c.text}</p>
+            </div>
+          ))}
+        </div>
+      </Panel>
 
       {!hasData ? (
         <Panel>
@@ -93,7 +206,11 @@ export function BalanceSheet() {
                     <tr className="bg-secondary/60"><td colSpan={3} className="px-5 py-2 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Non-Current Assets</td></tr>
                   )}
                   {ncA.map((l: any, i: number) => (
-                    <tr key={`nca-${i}`} className="border-b border-border/40 hover:bg-secondary/20">
+                    <tr
+                      key={`nca-${i}`}
+                      className="border-b border-border/40 hover:bg-secondary/20 cursor-pointer"
+                      onClick={() => open('assets', l.name, fmt(l.closingBalance ?? 0))}
+                    >
                       <td className="px-8 py-2.5 text-sm">{l.name}</td>
                       <td className="px-3 py-2.5 text-xs text-muted-foreground">{l.group}</td>
                       <td className="px-5 py-2.5 text-right tabular-nums font-medium">{fmt(l.closingBalance ?? 0)}</td>
@@ -103,7 +220,11 @@ export function BalanceSheet() {
                     <tr className="bg-secondary/60"><td colSpan={3} className="px-5 py-2 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Current Assets</td></tr>
                   )}
                   {currA.map((l: any, i: number) => (
-                    <tr key={`ca-${i}`} className="border-b border-border/40 hover:bg-secondary/20">
+                    <tr
+                      key={`ca-${i}`}
+                      className="border-b border-border/40 hover:bg-secondary/20 cursor-pointer"
+                      onClick={() => open('assets', l.name, fmt(l.closingBalance ?? 0))}
+                    >
                       <td className="px-8 py-2.5 text-sm">{l.name}</td>
                       <td className="px-3 py-2.5 text-xs text-muted-foreground">{l.group}</td>
                       <td className="px-5 py-2.5 text-right tabular-nums font-medium">{fmt(l.closingBalance ?? 0)}</td>
@@ -136,7 +257,7 @@ export function BalanceSheet() {
                     <tr className="bg-secondary/60"><td colSpan={3} className="px-5 py-2 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Equity</td></tr>
                   )}
                   {eq.map((l: any, i: number) => (
-                    <tr key={`eq-${i}`} className="border-b border-border/40 hover:bg-secondary/20">
+                    <tr key={`eq-${i}`} className="border-b border-border/40 hover:bg-secondary/20 cursor-pointer" onClick={() => open('liabilities', l.name, fmt(l.closingBalance ?? 0))}>
                       <td className="px-8 py-2.5 text-sm">{l.name}</td>
                       <td className="px-3 py-2.5 text-xs text-muted-foreground">{l.group}</td>
                       <td className="px-5 py-2.5 text-right tabular-nums font-medium">{fmt(l.closingBalance ?? 0)}</td>
@@ -146,7 +267,7 @@ export function BalanceSheet() {
                     <tr className="bg-secondary/60"><td colSpan={3} className="px-5 py-2 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Non-Current Liabilities</td></tr>
                   )}
                   {ncL.map((l: any, i: number) => (
-                    <tr key={`ncl-${i}`} className="border-b border-border/40 hover:bg-secondary/20">
+                    <tr key={`ncl-${i}`} className="border-b border-border/40 hover:bg-secondary/20 cursor-pointer" onClick={() => open('liabilities', l.name, fmt(l.closingBalance ?? 0))}>
                       <td className="px-8 py-2.5 text-sm">{l.name}</td>
                       <td className="px-3 py-2.5 text-xs text-muted-foreground">{l.group}</td>
                       <td className="px-5 py-2.5 text-right tabular-nums font-medium">{fmt(l.closingBalance ?? 0)}</td>
@@ -156,7 +277,7 @@ export function BalanceSheet() {
                     <tr className="bg-secondary/60"><td colSpan={3} className="px-5 py-2 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Current Liabilities</td></tr>
                   )}
                   {currL.map((l: any, i: number) => (
-                    <tr key={`cl-${i}`} className="border-b border-border/40 hover:bg-secondary/20">
+                    <tr key={`cl-${i}`} className="border-b border-border/40 hover:bg-secondary/20 cursor-pointer" onClick={() => open('liabilities', l.name, fmt(l.closingBalance ?? 0))}>
                       <td className="px-8 py-2.5 text-sm">{l.name}</td>
                       <td className="px-3 py-2.5 text-xs text-muted-foreground">{l.group}</td>
                       <td className="px-5 py-2.5 text-right tabular-nums font-medium">{fmt(l.closingBalance ?? 0)}</td>

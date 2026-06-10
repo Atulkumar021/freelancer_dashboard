@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Bell, Download, HelpCircle, Menu, RefreshCw,
-  Search, ChevronDown, Database, LogOut, Users, Shield,
+  Search, ChevronDown, Database, LogOut, Users, SlidersHorizontal,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ import {
 import { cn } from "@/lib/utils";
 import { useConnectionStatus, ConnLevel } from "@/hooks/useConnectionStatus";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFilters } from "@/contexts/FilterContext";
+import { printCurrentPage } from "@/lib/exportUtils";
 const logo = "/logo.png";
 
 const PAGE_TITLES: Record<string, { title: string; sub?: string }> = {
@@ -40,6 +42,7 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
   const { pathname } = useLocation();
   const navigate     = useNavigate();
   const { user, logout, isRole } = useAuth();
+  const { setPanelOpen, activeFilterCount, filters, setFilter } = useFilters();
   const page = PAGE_TITLES[pathname] ?? { title: "Dashboard", sub: "" };
   const [searchOpen,   setSearchOpen]   = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -106,9 +109,9 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
           </span>
         </div>
 
-        {/* ── Period filters ───────────────────────────────────────────── */}
+        {/* ── Period + org filters ─────────────────────────────────────── */}
         <div className="hidden xl:flex items-center gap-1.5 ml-1">
-          <Select defaultValue="fy26">
+          <Select value={filters.fy} onValueChange={v => setFilter('fy', v)}>
             <SelectTrigger className="h-8 w-[108px] text-xs border-border bg-background gap-1 pr-2">
               <SelectValue />
             </SelectTrigger>
@@ -119,18 +122,19 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
             </SelectContent>
           </Select>
 
-          <Select defaultValue="oct">
+          <Select value={filters.month} onValueChange={v => setFilter('month', v)}>
             <SelectTrigger className="h-8 w-[100px] text-xs border-border bg-background gap-1 pr-2">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">All Months</SelectItem>
               {["Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar"].map((m) => (
                 <SelectItem key={m} value={m.toLowerCase()}>{m} 2025</SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          <Select defaultValue="all">
+          <Select value={filters.branch} onValueChange={v => setFilter('branch', v)}>
             <SelectTrigger className="h-8 w-[112px] text-xs border-border bg-background gap-1 pr-2">
               <SelectValue />
             </SelectTrigger>
@@ -139,20 +143,46 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
               <SelectItem value="mum">Mumbai</SelectItem>
               <SelectItem value="del">Delhi</SelectItem>
               <SelectItem value="blr">Bengaluru</SelectItem>
+              <SelectItem value="hyd">Hyderabad</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={filters.costCentre} onValueChange={v => setFilter('costCentre', v)}>
+            <SelectTrigger className="h-8 w-[120px] text-xs border-border bg-background gap-1 pr-2">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Centres</SelectItem>
+              <SelectItem value="cc1">Corporate HQ</SelectItem>
+              <SelectItem value="cc2">Branch Ops</SelectItem>
+              <SelectItem value="cc3">R&amp;D</SelectItem>
+              <SelectItem value="cc4">Marketing</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
-        {/* Tablet: just month picker */}
-        <div className="hidden md:flex xl:hidden ml-1">
-          <Select defaultValue="oct">
+        {/* Tablet: just month + branch */}
+        <div className="hidden md:flex xl:hidden items-center gap-1.5 ml-1">
+          <Select value={filters.month} onValueChange={v => setFilter('month', v)}>
             <SelectTrigger className="h-8 w-[108px] text-xs border-border bg-background">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">All Months</SelectItem>
               {["Apr","May","Jun","Jul","Aug","Sep","Oct","Nov"].map((m) => (
                 <SelectItem key={m} value={m.toLowerCase()}>{m} 2025</SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select value={filters.branch} onValueChange={v => setFilter('branch', v)}>
+            <SelectTrigger className="h-8 w-[108px] text-xs border-border bg-background">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Branches</SelectItem>
+              <SelectItem value="mum">Mumbai</SelectItem>
+              <SelectItem value="del">Delhi</SelectItem>
+              <SelectItem value="blr">Bengaluru</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -196,15 +226,28 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
           <HelpCircle className="size-4" />
         </button>
 
+        {/* Advanced Filters button */}
+        <button
+          onClick={() => setPanelOpen(true)}
+          title="Advanced filters"
+          className="relative hidden sm:flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0"
+        >
+          <SlidersHorizontal className="size-4" />
+          {activeFilterCount > 0 && (
+            <span className="absolute top-1 right-1 size-2 rounded-full bg-gold" />
+          )}
+        </button>
+
         {/* Notification bell with badge */}
         <button className="relative size-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0">
           <Bell className="size-4" />
           <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-destructive" />
         </button>
 
-        {/* Export button */}
+        {/* Export / Print button */}
         <Button
           size="sm"
+          onClick={printCurrentPage}
           className="hidden sm:inline-flex h-8 bg-gradient-gold text-black hover:opacity-90 shadow-gold text-xs font-medium shrink-0 gap-1.5"
         >
           <Download className="size-3.5" />

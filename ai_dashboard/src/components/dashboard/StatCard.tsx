@@ -9,18 +9,21 @@ export interface StatCardProps {
   invertGood?: boolean;
   hint?: string;
   highlight?: boolean;
+  onClick?: () => void;
 }
 
-export function StatCard({ label, value, previous, deltaPct, invertGood, hint, highlight }: StatCardProps) {
+export function StatCard({ label, value, previous, deltaPct, invertGood, hint, highlight, onClick }: StatCardProps) {
   const up   = (deltaPct ?? 0) >= 0;
   const good = invertGood ? !up : up;
 
   return (
     <div
+      onClick={onClick}
       className={cn(
         "relative rounded-lg border bg-card p-4 shadow-sm transition-all duration-150",
         "hover:shadow-md hover:border-amber-200",
         highlight ? "border-l-[3px] border-l-amber-400 border-border" : "border-border",
+        onClick && "cursor-pointer",
       )}
     >
       {/* Metric label */}
