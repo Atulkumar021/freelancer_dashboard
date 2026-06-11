@@ -66,6 +66,7 @@ export function Compliance() {
     <div className="space-y-6">
       <PageHeader
         title="Compliance & Tax Calendar"
+        eyebrow="Statutory"
         subtitle="Statutory filing obligations across GST, TDS, income tax, payroll and corporate law — live from your data."
         actions={<Button variant="outline" className="h-9 gap-1.5"><Download className="size-4" /> Compliance Report</Button>}
       />

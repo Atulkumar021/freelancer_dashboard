@@ -23,18 +23,34 @@ router.get('/:companyId', async (req: Request, res: Response) => {
   const equity   = liab.filter((l) => EQUITY_GRP.includes(l.group));
 
   const sum = (arr: any[]) => arr.reduce((s, l) => s + (l.closingBalance ?? 0), 0);
-  const totalCA   = sum(currA);
-  const totalCL   = sum(currL);
-  const netWorth  = sum(equity);
-  const totalDebt = sum(ncurrL) + sum(currL.filter((l) => l.group === 'Bank OD Account'));
+  const byGroup = (arr: any[], groups: string[]) => sum(arr.filter((l) => groups.includes(l.group)));
+
+  const totalCA    = sum(currA);
+  const totalCL    = sum(currL);
+  const totalNCL   = sum(ncurrL);
+  const netWorth   = sum(equity);
+  const totalAssets = sum(assets);
+  const totalDebt  = totalNCL + sum(currL.filter((l) => l.group === 'Bank OD Account'));
 
   res.json({
     success: true, companyId,
     summary: {
-      totalAssets: sum(assets), netWorth, totalDebt,
+      totalAssets,
+      totalLiabilities: totalNCL + totalCL,
+      netWorth,
+      fixedAssets: byGroup(ncurrA, ['Fixed Assets']),
+      currentAssets: totalCA,
+      currentLiabilities: totalCL,
+      nonCurrentLiabilities: totalNCL,
+      loansAndBorrowings: totalDebt,
+      inventory: byGroup(currA, ['Stock-in-Hand']),
+      receivables: byGroup(currA, ['Sundry Debtors']),
+      payables: byGroup(currL, ['Sundry Creditors']),
+      cashAndBank: byGroup(currA, ['Cash-in-Hand', 'Bank Accounts']),
       workingCapital: totalCA - totalCL,
-      currentRatio: totalCL > 0 ? +(totalCA / totalCL).toFixed(2) : 0,
       debtEquity: netWorth > 0 ? +(totalDebt / netWorth).toFixed(2) : 0,
+      totalDebt,
+      currentRatio: totalCL > 0 ? +(totalCA / totalCL).toFixed(2) : 0,
     },
     sections: { nonCurrentAssets: ncurrA, currentAssets: currA, equity, nonCurrentLiabilities: ncurrL, currentLiabilities: currL },
   });

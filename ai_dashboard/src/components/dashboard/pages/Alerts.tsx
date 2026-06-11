@@ -111,6 +111,7 @@ export function Alerts() {
     <div className="space-y-6">
       <PageHeader
         title="Alerts & Action Tracker"
+        eyebrow="Action Centre"
         subtitle="All items requiring attention across the business — assign owners and track resolution."
         actions={
           <>

@@ -22,6 +22,7 @@ export function Settings() {
     <div className="space-y-8">
       <PageHeader
         title="Settings, Users & Access Control"
+        eyebrow="Administration"
         subtitle="Manage organisation users, roles and granular access across the dashboard."
       />
 

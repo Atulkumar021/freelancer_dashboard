@@ -99,8 +99,8 @@ export function GenericPage({
 
       {/* KPIs */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {kpis.map((k, i) => (
-          <div className=" animate-fade-in">
+        {kpis.map((k) => (
+          <div key={k.label} className="animate-fade-in">
             <StatCard {...k} />
           </div>
         ))}

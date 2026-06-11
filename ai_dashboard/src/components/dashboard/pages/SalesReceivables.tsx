@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   AlertTriangle, Download, TrendingDown, Users,
-  ChevronDown, ChevronRight, X, Search, Eye,
+  ChevronDown, X, Search, Eye,
   CreditCard, Clock, ShieldAlert, AlertCircle,
   FileText, BarChart2,
 } from "lucide-react";
@@ -10,6 +10,8 @@ import { Panel, PageHeader, SectionTitle } from "../Primitives";
 import { StatCard } from "../StatCard";
 import { TrendArea, BarsCompare } from "../Charts";
 import { api, fmt, monthName, toLakhs } from "@/lib/api";
+import { exportToCSV } from "@/lib/exportUtils";
+import { AnimatedValue } from "../Animated";
 
 /* ── Ageing bucket config ───────────────────────────────────────────────── */
 const AGING_BUCKETS = [
@@ -242,6 +244,16 @@ export function SalesReceivables() {
   const [showAllDebtors,setShowAllDebtors]= useState(false);
   const [invoiceDebtor, setInvoiceDebtor] = useState<any>(null);
   const [riskExpanded,  setRiskExpanded]  = useState<Record<string, boolean>>({});
+  const [activeBucket,  setActiveBucket]  = useState<string | null>(null);
+  const [barsIn,        setBarsIn]        = useState(false);
+
+  // Trigger progress-bar grow animation after first paint
+  useEffect(() => {
+    if (!loading) {
+      const t = requestAnimationFrame(() => setBarsIn(true));
+      return () => cancelAnimationFrame(t);
+    }
+  }, [loading]);
 
   useEffect(() => {
     api.sales().then(setData).catch(console.error).finally(() => setLoading(false));
@@ -402,7 +414,19 @@ export function SalesReceivables() {
         eyebrow={`VFD · ${fyLabel}`}
         subtitle="Complete visibility over sales, debtors, collections, ageing, and customer risk — synced from Tally."
         actions={
-          <Button variant="outline" className="h-9 gap-1.5">
+          <Button
+            variant="outline"
+            className="h-9 gap-1.5"
+            onClick={() => exportToCSV(
+              ['Customer','Outstanding','Overdue','Oldest Invoice','Pending Invoices','GSTIN'],
+              allDebtors.map((d: any) => [
+                d.name, d.closingBalance ?? 0, d.overdueAmount ?? '',
+                d.oldestInvoiceDate ? fmtDate(d.oldestInvoiceDate) : '',
+                d.pendingInvoiceCount ?? '', d.gstin ?? '',
+              ]),
+              'sales-receivables.csv',
+            )}
+          >
             <Download className="size-4" /> Export Report
           </Button>
         }
@@ -431,7 +455,7 @@ export function SalesReceivables() {
           <StatCard label="Sales excl. GST"     value={fmt(salesExclGST)} hint="Base / taxable value" />
           <StatCard label="GST on Outward"      value={fmt(gstOnSales)} hint="Output GST collected" />
           <StatCard label="Sales Return"        value={fmt(s.salesReturn ?? 0)} invertGood hint="Goods returned" />
-          <div className="rounded-xl border border-border bg-card px-4 py-3.5">
+          <div className="rounded-xl border border-border bg-card px-4 py-3.5 transition-all duration-200 hover:shadow-elegant hover:-translate-y-0.5 hover:border-gold/40">
             <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Best Month</p>
             <p className="text-lg font-bold mt-0.5">
               {highestMonth ? monthName(highestMonth._id?.month ?? highestMonth.month) : "—"}
@@ -489,41 +513,44 @@ export function SalesReceivables() {
           ))}
         </div>
 
-        {/* Tab 0: Monthly trend */}
-        {trendTab === 0 && (
-          salesTrend.length === 0
-            ? <p className="text-sm text-muted-foreground py-10 text-center">No sales data synced yet.</p>
-            : <TrendArea data={salesTrend} dataKey="sales" height={280} />
-        )}
+        {/* Tab content — keyed so each switch fades in */}
+        <div key={trendTab} className="animate-fade-in">
+          {/* Tab 0: Monthly trend */}
+          {trendTab === 0 && (
+            salesTrend.length === 0
+              ? <p className="text-sm text-muted-foreground py-10 text-center">No sales data synced yet.</p>
+              : <TrendArea data={salesTrend} dataKey="sales" height={280} />
+          )}
 
-        {/* Tab 1: Growth % MoM */}
-        {trendTab === 1 && (
-          growthData.length === 0
-            ? <p className="text-sm text-muted-foreground py-10 text-center">Insufficient data for growth calculation.</p>
-            : <BarsCompare data={growthData} series={[{ key: "growth", color: "#f59e0b", label: "Growth %" }]} height={280} />
-        )}
+          {/* Tab 1: Growth % MoM */}
+          {trendTab === 1 && (
+            growthData.length === 0
+              ? <p className="text-sm text-muted-foreground py-10 text-center">Insufficient data for growth calculation.</p>
+              : <BarsCompare data={growthData} series={[{ key: "growth", color: "#f59e0b", label: "Growth %" }]} height={280} />
+          )}
 
-        {/* Tab 2: Customer-wise */}
-        {trendTab === 2 && (
-          customerSalesData.length === 0
-            ? <p className="text-sm text-muted-foreground py-10 text-center">No customer sales data available.</p>
-            : <BarsCompare data={customerSalesData} series={[{ key: "sales", color: "#c9a84c", label: "Sales (₹ Lakhs)" }]} height={280} />
-        )}
+          {/* Tab 2: Customer-wise */}
+          {trendTab === 2 && (
+            customerSalesData.length === 0
+              ? <p className="text-sm text-muted-foreground py-10 text-center">No customer sales data available.</p>
+              : <BarsCompare data={customerSalesData} series={[{ key: "sales", color: "#c9a84c", label: "Sales (₹ Lakhs)" }]} height={280} />
+          )}
 
-        {/* Tabs 3–9: Data pending from Tally */}
-        {trendTab >= 3 && (
-          <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
-            <BarChart2 className="size-10 text-muted-foreground/25" />
-            <p className="text-sm font-semibold text-muted-foreground">{TREND_TABS[trendTab].label} — Data Not Yet Available</p>
-            <p className="text-xs text-muted-foreground/60 max-w-sm">
-              {trendTab === 3
-                ? "Budget data needs to be imported from your budgeting tool or entered manually."
-                : trendTab === 9
-                  ? "Previous year data will appear once historical Tally data is imported."
-                  : "This breakdown requires additional ledger groupings in Tally. Enable the relevant groupings to populate this chart."}
-            </p>
-          </div>
-        )}
+          {/* Tabs 3–9: Data pending from Tally */}
+          {trendTab >= 3 && (
+            <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+              <BarChart2 className="size-10 text-muted-foreground/25" />
+              <p className="text-sm font-semibold text-muted-foreground">{TREND_TABS[trendTab].label} — Data Not Yet Available</p>
+              <p className="text-xs text-muted-foreground/60 max-w-sm">
+                {trendTab === 3
+                  ? "Budget data needs to be imported from your budgeting tool or entered manually."
+                  : trendTab === 9
+                    ? "Previous year data will appear once historical Tally data is imported."
+                    : "This breakdown requires additional ledger groupings in Tally. Enable the relevant groupings to populate this chart."}
+              </p>
+            </div>
+          )}
+        </div>
       </Panel>
 
       {/* ══════════════════════════════════════════════════════════════════════
@@ -652,15 +679,18 @@ export function SalesReceivables() {
           </p>
         ) : (
           <>
-            {/* Stacked visual bar */}
+            {/* Stacked visual bar — click a segment to highlight its row below */}
             <div className="mb-5">
               <div className="flex h-6 rounded-xl overflow-hidden gap-0.5 mb-3 shadow-inner">
                 {agingBuckets.filter((b) => b.amount > 0).map((b) => (
                   <div
                     key={b.key}
-                    className={`${b.bgColor} relative flex items-center justify-center transition-all`}
+                    onClick={() => setActiveBucket(activeBucket === b.key ? null : b.key)}
+                    className={`${b.bgColor} relative flex items-center justify-center cursor-pointer transition-all duration-200 hover:brightness-110 ${
+                      activeBucket && activeBucket !== b.key ? "opacity-30" : ""
+                    }`}
                     style={{ width: `${b.pct}%` }}
-                    title={`${b.label}: ${fmt(b.amount)} (${b.pct.toFixed(1)}%)`}
+                    title={`${b.label}: ${fmt(b.amount)} (${b.pct.toFixed(1)}%) — click to highlight`}
                   >
                     {b.pct > 8 && (
                       <span className="text-white text-[10px] font-bold">{b.pct.toFixed(0)}%</span>
@@ -670,10 +700,18 @@ export function SalesReceivables() {
               </div>
               <div className="flex flex-wrap gap-x-5 gap-y-2">
                 {AGING_BUCKETS.map((b) => (
-                  <div key={b.key} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <button
+                    key={b.key}
+                    onClick={() => setActiveBucket(activeBucket === b.key ? null : b.key)}
+                    className={`flex items-center gap-1.5 text-[11px] transition-all rounded px-1 -mx-1 ${
+                      activeBucket === b.key
+                        ? "text-foreground font-semibold"
+                        : activeBucket ? "text-muted-foreground/40" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
                     <span className={`size-2.5 rounded-sm ${b.bgColor}`} />
                     {b.label}
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -693,7 +731,15 @@ export function SalesReceivables() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {agingBuckets.map((b) => (
-                    <tr key={b.key} className="hover:bg-secondary/30">
+                    <tr
+                      key={b.key}
+                      onClick={() => setActiveBucket(activeBucket === b.key ? null : b.key)}
+                      className={`cursor-pointer transition-all duration-200 ${
+                        activeBucket === b.key
+                          ? "bg-amber-50/80 ring-1 ring-inset ring-gold/30"
+                          : activeBucket ? "opacity-40 hover:opacity-70" : "hover:bg-secondary/30"
+                      }`}
+                    >
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-2.5">
                           <span className={`size-3 rounded-sm ${b.bgColor} shrink-0`} />
@@ -708,7 +754,10 @@ export function SalesReceivables() {
                         {b.amount > 0 ? (
                           <div className="flex items-center justify-end gap-2">
                             <div className="w-16 h-1.5 rounded-full bg-secondary overflow-hidden">
-                              <div className={`h-full ${b.bgColor}`} style={{ width: `${b.pct}%` }} />
+                              <div
+                                className={`h-full ${b.bgColor} transition-all duration-700 ease-out`}
+                                style={{ width: barsIn ? `${b.pct}%` : "0%" }}
+                              />
                             </div>
                             <span className="tabular-nums">{b.pct.toFixed(1)}%</span>
                           </div>
@@ -806,9 +855,11 @@ export function SalesReceivables() {
               valueColor: riskCustomers.length > 0 ? "text-amber-700" : "",
             },
           ].map((m) => (
-            <div key={m.label} className="rounded-xl border border-border bg-card px-4 py-3.5">
+            <div key={m.label} className="rounded-xl border border-border bg-card px-4 py-3.5 transition-all duration-200 hover:shadow-elegant hover:-translate-y-0.5 hover:border-gold/40">
               <p className="text-[11px] text-muted-foreground uppercase tracking-wide leading-snug mb-1.5">{m.label}</p>
-              <p className={`text-base font-bold tabular-nums ${m.valueColor || "text-foreground"}`}>{m.value}</p>
+              <p className={`text-base font-bold tabular-nums ${m.valueColor || "text-foreground"}`}>
+                <AnimatedValue value={m.value} />
+              </p>
               {m.hint && <p className="text-[10px] text-muted-foreground mt-0.5">{m.hint}</p>}
             </div>
           ))}
@@ -876,9 +927,12 @@ export function SalesReceivables() {
             const count  = cat.customers.length;
             const isOpen = !!riskExpanded[cat.id];
             return (
-              <div key={cat.id} className={`rounded-xl border p-4 transition-all ${cat.color}`}>
-                {/* Category header */}
-                <div className="flex items-center justify-between">
+              <div key={cat.id} className={`rounded-xl border p-4 transition-all duration-200 ${cat.color} ${count > 0 ? "hover:shadow-md" : ""}`}>
+                {/* Category header — whole row toggles */}
+                <div
+                  onClick={() => count > 0 && setRiskExpanded((prev) => ({ ...prev, [cat.id]: !prev[cat.id] }))}
+                  className={`flex items-center justify-between ${count > 0 ? "cursor-pointer" : ""}`}
+                >
                   <div className="flex items-center gap-2.5">
                     <Icon className="size-4 opacity-70 shrink-0" />
                     <span className="text-sm font-semibold">{cat.label}</span>
@@ -887,12 +941,7 @@ export function SalesReceivables() {
                     </span>
                   </div>
                   {count > 0 && (
-                    <button
-                      onClick={() => setRiskExpanded((prev) => ({ ...prev, [cat.id]: !prev[cat.id] }))}
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {isOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-                    </button>
+                    <ChevronDown className={`size-4 text-muted-foreground transition-transform duration-200 ${isOpen ? "" : "-rotate-90"}`} />
                   )}
                 </div>
 
@@ -913,9 +962,9 @@ export function SalesReceivables() {
 
                 {/* Expanded list */}
                 {count > 0 && isOpen && (
-                  <div className="mt-3 space-y-2">
+                  <div className="mt-3 space-y-2 animate-fade-in">
                     {cat.customers.map((c: any, i: number) => (
-                      <div key={i} className="flex items-start justify-between bg-white/60 rounded-lg px-3 py-2 gap-2">
+                      <div key={i} className="flex items-start justify-between bg-white/60 rounded-lg px-3 py-2 gap-2 transition-colors hover:bg-white/90">
                         <div>
                           <p className="text-xs font-semibold">{c.name}</p>
                           {c.riskReason && <p className="text-[10px] text-muted-foreground">{c.riskReason}</p>}
@@ -975,8 +1024,8 @@ export function SalesReceivables() {
                   </div>
                   <div className="h-2 rounded-full bg-secondary overflow-hidden">
                     <div
-                      className={`h-full rounded-full ${isConc ? "bg-gradient-to-r from-amber-500 to-red-500" : "bg-gradient-to-r from-amber-300 to-amber-500"}`}
-                      style={{ width: `${pct}%` }}
+                      className={`h-full rounded-full transition-all duration-700 ease-out ${isConc ? "bg-gradient-to-r from-amber-500 to-red-500" : "bg-gradient-to-r from-amber-300 to-amber-500"}`}
+                      style={{ width: barsIn ? `${pct}%` : "0%", transitionDelay: `${i * 60}ms` }}
                     />
                   </div>
                 </div>

@@ -216,4 +216,24 @@
   .status-overdue { color: var(--color-destructive); background: rgba(220,38,38,.08); border-color: rgba(220,38,38,.20); }
   .status-due     { color: #d97706; background: rgba(217,119,6,.08); border-color: rgba(217,119,6,.20); }
   .float-y, .spin-slow { /* removed for perf */ }
+
+  /* Gentle entrance for cards/sections */
+  .animate-fade-in {
+    animation: dash-fade-in 0.35s ease-out both;
+  }
+  @keyframes dash-fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Refined text selection + main-area scrollbar */
+  ::selection { background: rgba(201,168,76,0.25); }
+  main::-webkit-scrollbar { width: 10px; }
+  main::-webkit-scrollbar-track { background: transparent; }
+  main::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 5px;
+    border: 2px solid var(--background);
+  }
+  main::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 }

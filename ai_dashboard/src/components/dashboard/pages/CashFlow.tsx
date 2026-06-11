@@ -5,6 +5,7 @@ import { Panel, PageHeader, SectionTitle } from "../Primitives";
 import { StatCard } from "../StatCard";
 import { BarsCompare, TrendArea } from "../Charts";
 import { api, fmt, monthName, toLakhs } from "@/lib/api";
+import { exportToCSV, printCurrentPage } from "@/lib/exportUtils";
 
 function utilColor(pct: number) {
   if (pct >= 80) return "bg-destructive";
@@ -54,12 +55,35 @@ export function CashFlow() {
   const maturingFDs:  any[]  = data?.maturingFDs   ?? [];
   const cashLedgers:  any[]  = data?.cashBankLedgers ?? [];
 
+  const handleExportCSV = () => {
+    exportToCSV(
+      ['Bank','Branch','Account','Type','Book Balance','Statement Balance','Difference','Last Reconciled','Unreconciled Receipts','Unreconciled Payments'],
+      bankAccounts.map((b: any) => [
+        b.bankName, b.branch ?? '', b.accountNumber ?? '', b.accountType,
+        b.bookBalance ?? 0, b.statementBalance ?? '', b.differenceAmt ?? 0,
+        b.lastReconciliationDate ? new Date(b.lastReconciliationDate).toLocaleDateString('en-IN') : '',
+        b.unreconciledReceipts ?? 0, b.unreconciledPayments ?? 0,
+      ]),
+      'bank-balances.csv',
+    );
+  };
+
   return (
     <div className="space-y-8">
       <PageHeader
         title="Cash Flow & Banking"
+        eyebrow="Liquidity"
         subtitle="Movement of cash, bank balances, loan EMIs and liquidity from Tally & bank data."
-        actions={<Button variant="outline" className="h-9 gap-1.5"><Download className="size-4" /> Export</Button>}
+        actions={
+          <>
+            <Button variant="outline" className="h-9 gap-1.5 hidden sm:inline-flex" onClick={handleExportCSV}>
+              <Download className="size-4" /> Export CSV
+            </Button>
+            <Button variant="outline" className="h-9 gap-1.5" onClick={printCurrentPage}>
+              <Download className="size-4" /> PDF
+            </Button>
+          </>
+        }
       />
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -117,26 +141,43 @@ export function CashFlow() {
       {/* Bank accounts (from admin-entered data) */}
       {bankAccounts.length > 0 && (
         <Panel>
-          <SectionTitle title="Bank Accounts" subtitle="Registered bank accounts" />
+          <SectionTitle title="Bank-Wise Balances" subtitle="Book vs statement balance, reconciliation status" />
           <div className="overflow-x-auto -mx-5">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                   <th className="px-5 py-3 font-medium">Bank</th>
-                  <th className="px-3 py-3 font-medium">Type</th>
                   <th className="px-3 py-3 font-medium">Account</th>
-                  <th className="px-3 py-3 font-medium text-right">Balance</th>
+                  <th className="px-3 py-3 font-medium">Type</th>
+                  <th className="px-3 py-3 font-medium text-right">Book Balance</th>
+                  <th className="px-3 py-3 font-medium text-right">Statement Balance</th>
+                  <th className="px-3 py-3 font-medium text-right">Difference</th>
+                  <th className="px-3 py-3 font-medium">Last Reconciled</th>
+                  <th className="px-3 py-3 font-medium text-right">Unrecon. Receipts</th>
+                  <th className="px-3 py-3 font-medium text-right">Unrecon. Payments</th>
                 </tr>
               </thead>
               <tbody>
-                {bankAccounts.map((b: any, i: number) => (
-                  <tr key={i} className="border-b border-border/60 hover:bg-secondary/40">
-                    <td className="px-5 py-3 font-medium">{b.bankName}</td>
-                    <td className="px-3 py-3"><span className="text-[11px] px-2 py-0.5 rounded bg-secondary font-medium">{b.accountType}</span></td>
-                    <td className="px-3 py-3 font-mono text-xs text-muted-foreground">{b.accountNumber ? `•••• ${b.accountNumber.slice(-4)}` : "—"}</td>
-                    <td className="px-3 py-3 text-right tabular-nums font-semibold">{fmt(b.currentBalance ?? 0)}</td>
-                  </tr>
-                ))}
+                {bankAccounts.map((b: any, i: number) => {
+                  const diff = b.differenceAmt ?? 0;
+                  return (
+                    <tr key={i} className="border-b border-border/60 hover:bg-secondary/40">
+                      <td className="px-5 py-3 font-medium">{b.bankName}{b.branch ? <span className="block text-[11px] text-muted-foreground font-normal">{b.branch}</span> : null}</td>
+                      <td className="px-3 py-3 font-mono text-xs text-muted-foreground">{b.accountNumber ?? "—"}</td>
+                      <td className="px-3 py-3"><span className="text-[11px] px-2 py-0.5 rounded bg-secondary font-medium">{b.accountType}</span></td>
+                      <td className="px-3 py-3 text-right tabular-nums font-semibold">{fmt(b.bookBalance ?? 0)}</td>
+                      <td className="px-3 py-3 text-right tabular-nums">{b.statementBalance != null ? fmt(b.statementBalance) : "—"}</td>
+                      <td className={`px-3 py-3 text-right tabular-nums font-medium ${diff !== 0 ? "text-destructive" : "text-success"}`}>
+                        {diff !== 0 ? fmt(diff) : "—"}
+                      </td>
+                      <td className="px-3 py-3 text-xs text-muted-foreground">
+                        {b.lastReconciliationDate ? new Date(b.lastReconciliationDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}
+                      </td>
+                      <td className="px-3 py-3 text-right tabular-nums">{b.unreconciledReceipts ? fmt(b.unreconciledReceipts) : "—"}</td>
+                      <td className="px-3 py-3 text-right tabular-nums">{b.unreconciledPayments ? fmt(b.unreconciledPayments) : "—"}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

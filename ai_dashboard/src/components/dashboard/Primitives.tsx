@@ -14,10 +14,11 @@ export function PageHeader({
   eyebrow?: string;
 }) {
   return (
-    <div className={cn("flex flex-wrap items-start justify-between gap-4 mb-6", className)}>
+    <div className={cn("flex flex-wrap items-start justify-between gap-4 mb-6 pb-5 border-b border-border/70", className)}>
       <div className="min-w-0">
         {eyebrow && (
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-600 mb-1.5">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-gold mb-1.5">
+            <span className="inline-block w-4 h-px bg-gradient-gold" aria-hidden />
             {eyebrow}
           </p>
         )}
@@ -44,11 +45,14 @@ export function SectionTitle({
 }) {
   return (
     <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
-      <div>
-        <h3 className="text-sm font-semibold text-foreground leading-tight">{title}</h3>
-        {subtitle && (
-          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{subtitle}</p>
-        )}
+      <div className="flex items-start gap-2.5 min-w-0">
+        <span className="mt-[3px] block w-[3px] h-3.5 rounded-full bg-gradient-gold shrink-0" aria-hidden />
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-foreground leading-tight">{title}</h3>
+          {subtitle && (
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{subtitle}</p>
+          )}
+        </div>
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
@@ -63,7 +67,10 @@ export function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <div className={cn("rounded-lg border border-border bg-card p-5 shadow-sm", className)}>
+    <div className={cn(
+      "rounded-xl border border-border bg-card p-5 shadow-card transition-shadow duration-200 hover:shadow-elegant",
+      className,
+    )}>
       {children}
     </div>
   );
@@ -101,10 +108,28 @@ export function Badge({
   };
   return (
     <span className={cn(
-      "inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded border leading-none",
+      "inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border leading-none",
       styles[variant], className,
     )}>
       {children}
     </span>
+  );
+}
+
+/** Consistent empty state for panels awaiting data — keeps pages tidy instead of blank gaps. */
+export function EmptyState({
+  title = "No data yet",
+  message = "Sync your Tally data to populate this section.",
+  className,
+}: {
+  title?: string;
+  message?: string;
+  className?: string;
+}) {
+  return (
+    <div className={cn("py-10 text-center", className)}>
+      <p className="text-sm font-medium text-foreground/70">{title}</p>
+      <p className="text-xs text-muted-foreground mt-1">{message}</p>
+    </div>
   );
 }

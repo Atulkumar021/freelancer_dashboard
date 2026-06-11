@@ -1,5 +1,6 @@
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AnimatedValue } from "./Animated";
 
 export interface StatCardProps {
   label: string;
@@ -20,29 +21,36 @@ export function StatCard({ label, value, previous, deltaPct, invertGood, hint, h
     <div
       onClick={onClick}
       className={cn(
-        "relative rounded-lg border bg-card p-4 shadow-sm transition-all duration-150",
-        "hover:shadow-md hover:border-amber-200",
-        highlight ? "border-l-[3px] border-l-amber-400 border-border" : "border-border",
+        "group relative rounded-xl border bg-card p-4 shadow-card transition-all duration-200 overflow-hidden",
+        "hover:shadow-elegant hover:-translate-y-0.5 hover:border-gold/40",
+        highlight ? "border-gold/30" : "border-border",
         onClick && "cursor-pointer",
       )}
     >
+      {/* Gold hairline across the top for highlighted metrics */}
+      {highlight && (
+        <span className="absolute inset-x-0 top-0 h-[2.5px] bg-gradient-gold" aria-hidden />
+      )}
+      {/* Soft gold wash that appears on hover */}
+      <span className="absolute -right-10 -top-10 size-24 rounded-full bg-gradient-gold opacity-0 group-hover:opacity-10 blur-xl transition-opacity duration-300 pointer-events-none" aria-hidden />
+
       {/* Metric label */}
-      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground mb-2 leading-none">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground mb-2 leading-snug">
         {label}
       </p>
 
       {/* Value + delta row */}
       <div className="flex items-end justify-between gap-2">
-        <span className="text-[22px] font-semibold tracking-tight tabular-nums text-foreground leading-none">
-          {value}
+        <span className="text-[22px] font-semibold tracking-tight tabular-nums leading-none text-foreground">
+          <AnimatedValue value={value} />
         </span>
         {deltaPct !== undefined && (
           <span
             className={cn(
-              "inline-flex items-center gap-0.5 text-[11px] font-semibold px-1.5 py-0.5 rounded-sm shrink-0 mb-0.5",
+              "inline-flex items-center gap-0.5 text-[11px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 mb-0.5 border",
               good
-                ? "bg-emerald-50 text-emerald-700"
-                : "bg-red-50 text-red-600",
+                ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                : "bg-red-50 text-red-600 border-red-100",
             )}
           >
             {up

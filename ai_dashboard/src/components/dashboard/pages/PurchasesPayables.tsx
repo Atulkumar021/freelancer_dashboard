@@ -9,6 +9,8 @@ import { Panel, PageHeader, SectionTitle } from "../Primitives";
 import { StatCard } from "../StatCard";
 import { TrendArea, BarsCompare } from "../Charts";
 import { api, fmt, monthName, toLakhs } from "@/lib/api";
+import { exportToCSV } from "@/lib/exportUtils";
+import { AnimatedValue } from "../Animated";
 
 /* ── Ageing bucket config (7 buckets) ──────────────────────────────────── */
 const AGING_BUCKETS = [
@@ -260,10 +262,20 @@ export function PurchasesPayables() {
   const [payCat,           setPayCat]           = useState("all");
   const [showAllCreditors, setShowAllCreditors] = useState(false);
   const [billVendor,       setBillVendor]       = useState<any>(null);
+  const [activeBucket,     setActiveBucket]     = useState<string | null>(null);
+  const [barsIn,           setBarsIn]           = useState(false);
 
   useEffect(() => {
     api.purchases().then(setData).catch(console.error).finally(() => setLoading(false));
   }, []);
+
+  // Trigger progress-bar grow animation after first paint
+  useEffect(() => {
+    if (!loading) {
+      const t = requestAnimationFrame(() => setBarsIn(true));
+      return () => cancelAnimationFrame(t);
+    }
+  }, [loading]);
 
   /* ── All hooks before early return ──────────────────────────────────── */
   const agingBuckets = useMemo(() => {
@@ -373,7 +385,19 @@ export function PurchasesPayables() {
         eyebrow={`VFD · ${fyLabel}`}
         subtitle="Complete visibility over purchases, vendor obligations, creditor ageing, and upcoming payment calendar from Tally."
         actions={
-          <Button variant="outline" className="h-9 gap-1.5">
+          <Button
+            variant="outline"
+            className="h-9 gap-1.5"
+            onClick={() => exportToCSV(
+              ['Vendor','Outstanding','Overdue','Oldest Bill','Unpaid Bills','Payment Terms','GSTIN'],
+              allCreditors.map((c: any) => [
+                c.name, c.closingBalance ?? 0, c.overdueAmount ?? '',
+                c.oldestBillDate ? fmtDate(c.oldestBillDate) : '',
+                c.unpaidBillCount ?? '', c.paymentTerms ?? '', c.gstin ?? '',
+              ]),
+              'purchases-payables.csv',
+            )}
+          >
             <Download className="size-4" /> Export Report
           </Button>
         }
@@ -402,9 +426,9 @@ export function PurchasesPayables() {
           <StatCard label="Purchases excl. GST" value={fmt(purExclGST)} hint="Base / taxable value" />
           <StatCard label="GST Input Credit"    value={fmt(gstInput)} hint="ITC claimable" />
           <StatCard label="Purchase Return"     value={fmt(s.purchaseReturn ?? 0)} invertGood hint="Goods returned" />
-          <div className="rounded-xl border border-border bg-card px-4 py-3.5">
+          <div className="rounded-xl border border-border bg-card px-4 py-3.5 transition-all duration-200 hover:shadow-elegant hover:-translate-y-0.5 hover:border-gold/40">
             <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Total Payables</p>
-            <p className="text-lg font-bold tabular-nums mt-0.5 text-red-600">{fmt(s.totalPayables ?? 0)}</p>
+            <p className="text-lg font-bold tabular-nums mt-0.5 text-red-600"><AnimatedValue value={fmt(s.totalPayables ?? 0)} /></p>
             <p className="text-[11px] text-muted-foreground">{s.creditorCount ?? "—"} vendors</p>
           </div>
         </div>
@@ -423,7 +447,7 @@ export function PurchasesPayables() {
 
         {/* Budget vs Actual callout */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="rounded-xl border border-border bg-card px-4 py-3.5 flex items-center justify-between">
+          <div className="rounded-xl border border-border bg-card px-4 py-3.5 flex items-center justify-between transition-all duration-200 hover:shadow-elegant hover:-translate-y-0.5 hover:border-gold/40">
             <div>
               <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Budget vs Actual (YTD)</p>
               <p className="text-lg font-bold tabular-nums mt-0.5">{s.budgetedPurchases != null ? fmt(s.budgetedPurchases) : "—"}</p>
@@ -437,7 +461,7 @@ export function PurchasesPayables() {
               </div>
             )}
           </div>
-          <div className="rounded-xl border border-border bg-card px-4 py-3.5 flex items-center justify-between">
+          <div className="rounded-xl border border-border bg-card px-4 py-3.5 flex items-center justify-between transition-all duration-200 hover:shadow-elegant hover:-translate-y-0.5 hover:border-gold/40">
             <div>
               <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Days Payable Outstanding</p>
               <p className="text-lg font-bold tabular-nums mt-0.5">{s.dpo ?? "—"} days</p>
@@ -491,39 +515,41 @@ export function PurchasesPayables() {
           ))}
         </div>
 
-        {trendTab === 0 && (
-          purchaseTrend.length === 0
-            ? <p className="text-sm text-muted-foreground py-10 text-center">No purchase data synced yet.</p>
-            : <TrendArea data={purchaseTrend} dataKey="purchases" height={260} />
-        )}
-        {trendTab === 1 && (
-          growthData.length === 0
-            ? <p className="text-sm text-muted-foreground py-10 text-center">Insufficient data.</p>
-            : <BarsCompare data={growthData} series={[{ key: "growth", color: "#f59e0b", label: "Growth %" }]} height={260} />
-        )}
-        {trendTab === 2 && (
-          topParties.length === 0
-            ? <p className="text-sm text-muted-foreground py-10 text-center">No vendor data available.</p>
-            : <BarsCompare
-                data={topParties.slice(0, 10).map((p: any) => ({
-                  name:      (p._id?.length ?? 0) > 16 ? p._id.slice(0, 14) + "…" : p._id,
-                  purchases: toLakhs(p.total),
-                }))}
-                series={[{ key: "purchases", color: "#c9a84c", label: "Purchases (₹ Lakhs)" }]}
-                height={260}
-              />
-        )}
-        {trendTab >= 3 && (
-          <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
-            <BarChart2 className="size-10 text-muted-foreground/25" />
-            <p className="text-sm font-semibold text-muted-foreground">{TREND_TABS[trendTab].label} — Data Not Yet Available</p>
-            <p className="text-xs text-muted-foreground/60 max-w-sm">
-              {trendTab === 4
-                ? "Budget data needs to be imported or entered manually to compare with actuals."
-                : "This breakdown requires additional Tally ledger groupings. Enable the relevant cost categories to populate this chart."}
-            </p>
-          </div>
-        )}
+        <div key={trendTab} className="animate-fade-in">
+          {trendTab === 0 && (
+            purchaseTrend.length === 0
+              ? <p className="text-sm text-muted-foreground py-10 text-center">No purchase data synced yet.</p>
+              : <TrendArea data={purchaseTrend} dataKey="purchases" height={260} />
+          )}
+          {trendTab === 1 && (
+            growthData.length === 0
+              ? <p className="text-sm text-muted-foreground py-10 text-center">Insufficient data.</p>
+              : <BarsCompare data={growthData} series={[{ key: "growth", color: "#f59e0b", label: "Growth %" }]} height={260} />
+          )}
+          {trendTab === 2 && (
+            topParties.length === 0
+              ? <p className="text-sm text-muted-foreground py-10 text-center">No vendor data available.</p>
+              : <BarsCompare
+                  data={topParties.slice(0, 10).map((p: any) => ({
+                    name:      (p._id?.length ?? 0) > 16 ? p._id.slice(0, 14) + "…" : p._id,
+                    purchases: toLakhs(p.total),
+                  }))}
+                  series={[{ key: "purchases", color: "#c9a84c", label: "Purchases (₹ Lakhs)" }]}
+                  height={260}
+                />
+          )}
+          {trendTab >= 3 && (
+            <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+              <BarChart2 className="size-10 text-muted-foreground/25" />
+              <p className="text-sm font-semibold text-muted-foreground">{TREND_TABS[trendTab].label} — Data Not Yet Available</p>
+              <p className="text-xs text-muted-foreground/60 max-w-sm">
+                {trendTab === 4
+                  ? "Budget data needs to be imported or entered manually to compare with actuals."
+                  : "This breakdown requires additional Tally ledger groupings. Enable the relevant cost categories to populate this chart."}
+              </p>
+            </div>
+          )}
+        </div>
       </Panel>
 
       {/* ══════════════════════════════════════════════════════════════════════
@@ -651,15 +677,18 @@ export function PurchasesPayables() {
           </p>
         ) : (
           <>
-            {/* Visual stacked bar */}
+            {/* Visual stacked bar — click a segment to highlight its row below */}
             <div className="mb-5">
               <div className="flex h-6 rounded-xl overflow-hidden gap-0.5 mb-3 shadow-inner">
                 {agingBuckets.filter((b) => b.amount > 0).map((b) => (
                   <div
                     key={b.key}
-                    className={`${b.bgColor} relative flex items-center justify-center transition-all`}
+                    onClick={() => setActiveBucket(activeBucket === b.key ? null : b.key)}
+                    className={`${b.bgColor} relative flex items-center justify-center cursor-pointer transition-all duration-200 hover:brightness-110 ${
+                      activeBucket && activeBucket !== b.key ? "opacity-30" : ""
+                    }`}
                     style={{ width: `${b.pct}%` }}
-                    title={`${b.label}: ${fmt(b.amount)} (${b.pct.toFixed(1)}%)`}
+                    title={`${b.label}: ${fmt(b.amount)} (${b.pct.toFixed(1)}%) — click to highlight`}
                   >
                     {b.pct > 8 && (
                       <span className="text-white text-[10px] font-bold">{b.pct.toFixed(0)}%</span>
@@ -669,10 +698,18 @@ export function PurchasesPayables() {
               </div>
               <div className="flex flex-wrap gap-x-5 gap-y-2">
                 {AGING_BUCKETS.map((b) => (
-                  <div key={b.key} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <button
+                    key={b.key}
+                    onClick={() => setActiveBucket(activeBucket === b.key ? null : b.key)}
+                    className={`flex items-center gap-1.5 text-[11px] transition-all rounded px-1 -mx-1 ${
+                      activeBucket === b.key
+                        ? "text-foreground font-semibold"
+                        : activeBucket ? "text-muted-foreground/40" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
                     <span className={`size-2.5 rounded-sm ${b.bgColor}`} />
                     {b.label}
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -692,7 +729,15 @@ export function PurchasesPayables() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {agingBuckets.map((b) => (
-                    <tr key={b.key} className="hover:bg-secondary/30">
+                    <tr
+                      key={b.key}
+                      onClick={() => setActiveBucket(activeBucket === b.key ? null : b.key)}
+                      className={`cursor-pointer transition-all duration-200 ${
+                        activeBucket === b.key
+                          ? "bg-amber-50/80 ring-1 ring-inset ring-gold/30"
+                          : activeBucket ? "opacity-40 hover:opacity-70" : "hover:bg-secondary/30"
+                      }`}
+                    >
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-2.5">
                           <span className={`size-3 rounded-sm ${b.bgColor} shrink-0`} />
@@ -709,7 +754,10 @@ export function PurchasesPayables() {
                         {b.amount > 0 ? (
                           <div className="flex items-center justify-end gap-2">
                             <div className="w-16 h-1.5 rounded-full bg-secondary overflow-hidden">
-                              <div className={`h-full ${b.bgColor}`} style={{ width: `${b.pct}%` }} />
+                              <div
+                                className={`h-full ${b.bgColor} transition-all duration-700 ease-out`}
+                                style={{ width: barsIn ? `${b.pct}%` : "0%" }}
+                              />
                             </div>
                             <span className="tabular-nums">{b.pct.toFixed(1)}%</span>
                           </div>
@@ -785,14 +833,14 @@ export function PurchasesPayables() {
               badge: "bg-emerald-100 text-emerald-700",
             },
           ].map((w) => (
-            <div key={w.label} className={`rounded-xl border p-4 ${w.color}`}>
+            <div key={w.label} className={`rounded-xl border p-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${w.color}`}>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold">{w.label}</p>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${w.badge}`}>
                   {w.count} payment{w.count !== 1 ? "s" : ""}
                 </span>
               </div>
-              <p className="text-lg font-bold tabular-nums">{w.amount > 0 ? fmt(w.amount) : "—"}</p>
+              <p className="text-lg font-bold tabular-nums">{w.amount > 0 ? <AnimatedValue value={fmt(w.amount)} /> : "—"}</p>
             </div>
           ))}
         </div>
@@ -839,7 +887,7 @@ export function PurchasesPayables() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto -mx-5">
+          <div key={payCat} className="overflow-x-auto -mx-5 animate-fade-in">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-border text-left bg-secondary/30">
@@ -892,9 +940,9 @@ export function PurchasesPayables() {
             { label: "Statutory Dues",   value: s.statutoryDues    != null ? fmt(s.statutoryDues)    : "—" },
             { label: "Utility Payments", value: s.utilityPayments  != null ? fmt(s.utilityPayments)  : "—" },
           ].map((item) => (
-            <div key={item.label} className="rounded-lg border border-border bg-card px-3 py-2.5 text-center">
+            <div key={item.label} className="rounded-lg border border-border bg-card px-3 py-2.5 text-center transition-all duration-200 hover:shadow-elegant hover:-translate-y-0.5 hover:border-gold/40">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide leading-snug">{item.label}</p>
-              <p className="text-sm font-bold tabular-nums mt-1">{item.value}</p>
+              <p className="text-sm font-bold tabular-nums mt-1"><AnimatedValue value={item.value} /></p>
             </div>
           ))}
         </div>
@@ -941,7 +989,10 @@ export function PurchasesPayables() {
                         </span>
                       </div>
                       <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                        <div className={`h-full rounded-full ${isConc ? "bg-gradient-to-r from-amber-500 to-red-500" : "bg-gradient-to-r from-amber-300 to-amber-500"}`} style={{ width: `${pct}%` }} />
+                        <div
+                          className={`h-full rounded-full transition-all duration-700 ease-out ${isConc ? "bg-gradient-to-r from-amber-500 to-red-500" : "bg-gradient-to-r from-amber-300 to-amber-500"}`}
+                          style={{ width: barsIn ? `${pct}%` : "0%", transitionDelay: `${i * 60}ms` }}
+                        />
                       </div>
                     </div>
                   );
@@ -961,7 +1012,11 @@ export function PurchasesPayables() {
             ) : (
               <div className="space-y-1.5">
                 {topCreditors.map((c: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 bg-secondary/30">
+                  <div
+                    key={i}
+                    onClick={() => setBillVendor(c)}
+                    className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 bg-secondary/30 cursor-pointer transition-all duration-150 hover:bg-amber-50 hover:translate-x-0.5"
+                  >
                     <span className="text-xs font-semibold truncate">{c.name}</span>
                     <span className="text-xs font-bold tabular-nums text-red-600 shrink-0">{fmt(c.closingBalance ?? 0)}</span>
                   </div>

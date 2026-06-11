@@ -54,12 +54,20 @@ export function BalanceSheet() {
   const currL: any[] = sections.currentLiabilities    ?? [];
 
   const cards = [
-    { label: "Total Assets",    value: fmt(s.totalAssets    ?? 0), onClick: () => open('assets',      'Total Assets',       fmt(s.totalAssets ?? 0)) },
-    { label: "Net Worth",       value: fmt(s.netWorth       ?? 0), highlight: true, onClick: () => open('liabilities', 'Net Worth / Equity', fmt(s.netWorth ?? 0)) },
-    { label: "Total Debt",      value: fmt(s.totalDebt      ?? 0), invertGood: true },
-    { label: "Working Capital", value: fmt(s.workingCapital ?? 0) },
-    { label: "Current Ratio",   value: `${(s.currentRatio  ?? 0).toFixed(2)}x` },
-    { label: "Debt-to-Equity",  value: `${(s.debtEquity    ?? 0).toFixed(2)}x`, invertGood: true },
+    { label: "Total Assets",            value: fmt(s.totalAssets            ?? 0), onClick: () => open('assets',      'Total Assets',           fmt(s.totalAssets ?? 0)) },
+    { label: "Total Liabilities",       value: fmt(s.totalLiabilities       ?? 0), onClick: () => open('liabilities', 'Total Liabilities',      fmt(s.totalLiabilities ?? 0)) },
+    { label: "Net Worth",                value: fmt(s.netWorth               ?? 0), highlight: true, onClick: () => open('liabilities', 'Net Worth / Equity', fmt(s.netWorth ?? 0)) },
+    { label: "Fixed Assets",            value: fmt(s.fixedAssets            ?? 0), onClick: () => open('assets',      'Fixed Assets',           fmt(s.fixedAssets ?? 0)) },
+    { label: "Current Assets",          value: fmt(s.currentAssets          ?? 0), onClick: () => open('assets',      'Current Assets',         fmt(s.currentAssets ?? 0)) },
+    { label: "Current Liabilities",     value: fmt(s.currentLiabilities     ?? 0), onClick: () => open('liabilities', 'Current Liabilities',    fmt(s.currentLiabilities ?? 0)) },
+    { label: "Non-Current Liabilities", value: fmt(s.nonCurrentLiabilities  ?? 0), onClick: () => open('liabilities', 'Non-Current Liabilities', fmt(s.nonCurrentLiabilities ?? 0)) },
+    { label: "Loans & Borrowings",      value: fmt(s.loansAndBorrowings     ?? 0), invertGood: true, onClick: () => open('liabilities', 'Loans & Borrowings', fmt(s.loansAndBorrowings ?? 0)) },
+    { label: "Inventory",               value: fmt(s.inventory              ?? 0), onClick: () => open('assets',      'Inventory',              fmt(s.inventory ?? 0)) },
+    { label: "Receivables",             value: fmt(s.receivables            ?? 0), onClick: () => open('debtors',     'Receivables',            fmt(s.receivables ?? 0)) },
+    { label: "Payables",                value: fmt(s.payables               ?? 0), onClick: () => open('creditors',   'Payables',               fmt(s.payables ?? 0)) },
+    { label: "Cash & Bank",              value: fmt(s.cashAndBank            ?? 0), onClick: () => open('assets',      'Cash & Bank',            fmt(s.cashAndBank ?? 0)) },
+    { label: "Net Working Capital",     value: fmt(s.workingCapital         ?? 0) },
+    { label: "Debt-to-Equity",          value: `${(s.debtEquity            ?? 0).toFixed(2)}x`, invertGood: true },
   ];
 
   const hasData = ncA.length + currA.length + eq.length + ncL.length + currL.length > 0;
@@ -81,6 +89,7 @@ export function BalanceSheet() {
 
       <PageHeader
         title="Balance Sheet Analysis"
+        eyebrow="Financial Position"
         subtitle="Statement of assets, liabilities and shareholders' equity — from Tally ledgers."
         actions={
           <>
@@ -95,7 +104,7 @@ export function BalanceSheet() {
       />
 
       {/* KPI Cards */}
-      <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
         {cards.map((c) => <StatCard key={c.label} {...c} />)}
       </section>
 

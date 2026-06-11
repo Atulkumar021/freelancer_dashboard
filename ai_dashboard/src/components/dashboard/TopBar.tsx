@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Bell, Download, HelpCircle, Menu, RefreshCw,
   Search, ChevronDown, Database, LogOut, Users, SlidersHorizontal,
@@ -15,35 +15,10 @@ import { useFilters } from "@/contexts/FilterContext";
 import { printCurrentPage } from "@/lib/exportUtils";
 const logo = "/logo.png";
 
-const PAGE_TITLES: Record<string, { title: string; sub?: string }> = {
-  "/":              { title: "Executive Overview",      sub: "Real-time business snapshot" },
-  "/health-score":  { title: "Business Health Score",   sub: "7-dimension financial health" },
-  "/executive":     { title: "Executive Dashboard",     sub: "C-suite synthesized view" },
-  "/commentary":    { title: "Management Commentary",   sub: "Monthly VCFO reports" },
-  "/sales":         { title: "Sales & Receivables",     sub: "Revenue, debtors & collections" },
-  "/purchases":     { title: "Purchases & Payables",    sub: "Vendors, creditors & payments" },
-  "/pnl":           { title: "Profit & Loss",           sub: "Income, expenses & margins" },
-  "/budget":        { title: "Budget vs Actuals",       sub: "Variance analysis" },
-  "/balance-sheet": { title: "Balance Sheet",           sub: "Assets, liabilities & net worth" },
-  "/cashflow":      { title: "Cash Flow & Banking",     sub: "Liquidity, banks & forecasts" },
-  "/inventory":     { title: "Inventory",               sub: "Stock levels & working capital" },
-  "/payroll":       { title: "Payroll",                 sub: "Salaries, compliance & HR" },
-  "/compliance":    { title: "Compliance & Tax",        sub: "GST, TDS & statutory filings" },
-  "/tax-planning":  { title: "Tax Planning",            sub: "Advance tax & savings" },
-  "/ratios":        { title: "Ratios & KPIs",           sub: "Financial performance metrics" },
-  "/advisory":      { title: "Advisory Actions",        sub: "Consultara recommendations" },
-  "/insights":      { title: "Advisory & Reports",      sub: "AI insights & downloads" },
-  "/documents":     { title: "Documents",               sub: "Reports & files" },
-  "/alerts":        { title: "Alerts & Actions",        sub: "Notifications & action items" },
-  "/settings":      { title: "Settings & Access",       sub: "Users, roles & data sources" },
-};
-
 export function TopBar({ onMenu }: { onMenu?: () => void }) {
-  const { pathname } = useLocation();
   const navigate     = useNavigate();
   const { user, logout, isRole } = useAuth();
   const { setPanelOpen, activeFilterCount, filters, setFilter } = useFilters();
-  const page = PAGE_TITLES[pathname] ?? { title: "Dashboard", sub: "" };
   const [searchOpen,   setSearchOpen]   = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -83,30 +58,6 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
             <img src={logo} alt="" className="size-full object-contain" />
           </div>
           <span className="font-display text-sm font-medium truncate">Consultara</span>
-        </div>
-
-        {/* ── Desktop: page title ──────────────────────────────────────── */}
-        <div className="hidden lg:flex flex-col justify-center min-w-0 mr-4">
-          <h2 className="font-display text-[15px] font-semibold leading-tight truncate">
-            {page.title}
-          </h2>
-          {page.sub && (
-            <span className="text-[11px] text-muted-foreground truncate">{page.sub}</span>
-          )}
-        </div>
-
-        {/* ── Divider ──────────────────────────────────────────────────── */}
-        <div className="hidden lg:block h-7 w-px bg-border mx-1 shrink-0" />
-
-        {/* ── Client context pill ─────────────────────────────────────── */}
-        <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary border border-border shrink-0">
-          <div className={cn(
-            "size-2 rounded-full",
-            conn.backend === 'connected' ? "bg-emerald-500 animate-pulse" : "bg-red-400",
-          )} />
-          <span className="text-xs font-medium text-foreground/80 whitespace-nowrap">
-            {user?.companyId ?? 'Company'}
-          </span>
         </div>
 
         {/* ── Period + org filters ─────────────────────────────────────── */}
@@ -193,12 +144,12 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
         {/* ── Live connection status ───────────────────────────────────── */}
         <ConnectionStatus conn={conn} />
 
-        {/* ── Search ──────────────────────────────────────────────────── */}
+        {/* ── Search — compact by default, expands on focus ────────────── */}
         <div className="hidden xl:flex items-center relative shrink-0">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
           <input
-            placeholder="Search ledgers, invoices…"
-            className="h-8 w-[190px] pl-8 pr-3 rounded-lg border border-border bg-secondary/60 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold/40 focus:bg-card transition-all"
+            placeholder="Search…"
+            className="h-8 w-[120px] 2xl:w-[170px] focus:w-[220px] pl-8 pr-3 rounded-lg border border-border bg-secondary/60 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold/40 focus:bg-card transition-all duration-200"
           />
         </div>
 
@@ -340,12 +291,16 @@ function ConnectionStatus({ conn }: { conn: ReturnType<typeof import("@/hooks/us
   };
 
   return (
-    <div className="hidden lg:flex items-center gap-3 shrink-0">
-      {/* Backend */}
-      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-        <Database className="size-3 shrink-0" />
+    <div
+      className="hidden lg:flex items-center gap-2 shrink-0 px-2.5 py-1.5 rounded-lg bg-secondary/60 border border-border"
+      title={`Backend: ${label(conn.backend)} · Tally: ${label(conn.tally)}${conn.lastSync ? ` · synced ${conn.lastSync}` : ''}`}
+    >
+      {/* Backend — dot + icon, label only on very wide screens */}
+      <div className="flex items-center gap-1 text-[11px]">
+        <span className={cn("size-2 rounded-full shrink-0", dotColor(conn.backend))} />
+        <Database className="size-3 shrink-0 text-muted-foreground" />
         <span className={cn(
-          "font-medium",
+          "font-medium hidden 2xl:inline",
           conn.backend === 'connected' ? "text-emerald-600"
           : conn.backend === 'offline' ? "text-red-500"
           : "text-muted-foreground"
@@ -357,7 +312,7 @@ function ConnectionStatus({ conn }: { conn: ReturnType<typeof import("@/hooks/us
       <div className="h-3 w-px bg-border" />
 
       {/* Tally */}
-      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      <div className="flex items-center gap-1 text-[11px]">
         <span className={cn("size-2 rounded-full shrink-0", dotColor(conn.tally))} />
         <span className={cn(
           "font-medium",
@@ -366,11 +321,16 @@ function ConnectionStatus({ conn }: { conn: ReturnType<typeof import("@/hooks/us
           : conn.tally === 'degraded' ? "text-amber-600"
           : "text-muted-foreground"
         )}>
-          Tally: {label(conn.tally)}
+          Tally
         </span>
-        {conn.lastSync && conn.tally !== 'offline' && (
-          <span className="text-muted-foreground">· {conn.lastSync}</span>
-        )}
+        <span className={cn(
+          "hidden 2xl:inline font-medium",
+          conn.tally === 'connected' ? "text-emerald-600"
+          : conn.tally === 'offline' ? "text-red-500"
+          : "text-muted-foreground"
+        )}>
+          · {label(conn.tally)}
+        </span>
       </div>
     </div>
   );

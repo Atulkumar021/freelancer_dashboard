@@ -25,14 +25,31 @@ import {
 const axisStyle = { fontSize: 11, fill: "#9ca3af", fontFamily: "Inter, system-ui, sans-serif" };
 
 const tooltipStyle = {
-  background: "#ffffff",
+  background: "rgba(255,255,255,0.98)",
   border: "1px solid #e5e7eb",
-  borderRadius: 6,
+  borderRadius: 10,
   fontSize: 12,
   fontFamily: "Inter, system-ui, sans-serif",
-  boxShadow: "0 4px 16px -4px rgba(0,0,0,0.10)",
-  padding: "8px 12px",
+  boxShadow: "0 8px 28px -6px rgba(0,0,0,0.14)",
+  padding: "10px 14px",
 };
+
+const numberFmt = (v: any) =>
+  typeof v === "number" ? v.toLocaleString("en-IN", { maximumFractionDigits: 2 }) : v;
+
+/** Small inline legend rendered under multi-series charts so readers always know what each colour means. */
+function ChartLegend({ series }: { series: { key: string; color: string; label: string }[] }) {
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 mt-2">
+      {series.map((s) => (
+        <span key={s.key} className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span className="size-2.5 rounded-sm shrink-0" style={{ background: s.color }} />
+          {s.label}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 export function GoldGradientDef({ id }: { id: string }) {
   return (
@@ -65,14 +82,15 @@ export function TrendArea({
         <GoldGradientDef id="trendArea" />
         <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
         <XAxis dataKey="name" tick={axisStyle} axisLine={false} tickLine={false} />
-        <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
-        <Tooltip contentStyle={tooltipStyle} />
+        <YAxis tick={axisStyle} axisLine={false} tickLine={false} tickFormatter={numberFmt} />
+        <Tooltip contentStyle={tooltipStyle} formatter={numberFmt} />
         <Area
           type="monotone"
           dataKey={dataKey}
           stroke="url(#trendArea-line)"
           strokeWidth={2.5}
           fill="url(#trendArea)"
+          activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }}
         />
       </AreaChart>
     </ResponsiveContainer>
@@ -89,25 +107,29 @@ export function MultiLine({
   height?: number;
 }) {
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-        <XAxis dataKey="name" tick={axisStyle} axisLine={false} tickLine={false} />
-        <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
-        <Tooltip contentStyle={tooltipStyle} />
-        {series.map((s) => (
-          <Line
-            key={s.key}
-            type="monotone"
-            dataKey={s.key}
-            stroke={s.color}
-            strokeWidth={2.25}
-            dot={false}
-            activeDot={{ r: 4 }}
-          />
-        ))}
-      </LineChart>
-    </ResponsiveContainer>
+    <div>
+      <ResponsiveContainer width="100%" height={height}>
+        <LineChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+          <XAxis dataKey="name" tick={axisStyle} axisLine={false} tickLine={false} />
+          <YAxis tick={axisStyle} axisLine={false} tickLine={false} tickFormatter={numberFmt} />
+          <Tooltip contentStyle={tooltipStyle} formatter={numberFmt} />
+          {series.map((s) => (
+            <Line
+              key={s.key}
+              name={s.label}
+              type="monotone"
+              dataKey={s.key}
+              stroke={s.color}
+              strokeWidth={2.25}
+              dot={false}
+              activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }}
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+      <ChartLegend series={series} />
+    </div>
   );
 }
 
@@ -121,17 +143,20 @@ export function BarsCompare({
   height?: number;
 }) {
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-        <XAxis dataKey="name" tick={axisStyle} axisLine={false} tickLine={false} />
-        <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
-        <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(243,244,246,0.6)" }} />
-        {series.map((s) => (
-          <Bar key={s.key} dataKey={s.key} fill={s.color} radius={[4, 4, 0, 0]} maxBarSize={28} />
-        ))}
-      </BarChart>
-    </ResponsiveContainer>
+    <div>
+      <ResponsiveContainer width="100%" height={height}>
+        <BarChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+          <XAxis dataKey="name" tick={axisStyle} axisLine={false} tickLine={false} />
+          <YAxis tick={axisStyle} axisLine={false} tickLine={false} tickFormatter={numberFmt} />
+          <Tooltip contentStyle={tooltipStyle} formatter={numberFmt} cursor={{ fill: "rgba(243,244,246,0.6)" }} />
+          {series.map((s) => (
+            <Bar key={s.key} name={s.label} dataKey={s.key} fill={s.color} radius={[5, 5, 0, 0]} maxBarSize={28} />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+      <ChartLegend series={series} />
+    </div>
   );
 }
 
@@ -142,10 +167,17 @@ export function DonutChart({
   data: { name: string; value: number; color: string }[];
   height?: number;
 }) {
+  const total = data.reduce((s, d) => s + (d.value ?? 0), 0);
   return (
     <ResponsiveContainer width="100%" height={height}>
       <PieChart>
-        <Tooltip contentStyle={tooltipStyle} />
+        <Tooltip
+          contentStyle={tooltipStyle}
+          formatter={(v: any, name: any) => [
+            `${numberFmt(v)}${total > 0 ? ` (${Math.round((v / total) * 100)}%)` : ""}`,
+            name,
+          ]}
+        />
         <Pie
           data={data}
           dataKey="value"
@@ -182,7 +214,7 @@ export function PerformanceRadar({
           tickLine={false}
         />
         <PolarRadiusAxis tick={false} axisLine={false} />
-        <Tooltip contentStyle={tooltipStyle} />
+        <Tooltip contentStyle={tooltipStyle} formatter={numberFmt} />
         <Radar name="Benchmark" dataKey="benchmark" stroke="#1a1a1a" fill="#1a1a1a" fillOpacity={0.08} />
         <Radar name="You" dataKey="value" stroke="#a6905f" fill="#c4b07a" fillOpacity={0.45} strokeWidth={2} />
       </RadarChart>
@@ -201,7 +233,7 @@ export function GoalRadial({
     <ResponsiveContainer width="100%" height={height}>
       <RadialBarChart innerRadius="40%" outerRadius="100%" data={data} startAngle={90} endAngle={-270}>
         <RadialBar background={{ fill: "#f3f4f6" }} dataKey="value" cornerRadius={6} />
-        <Tooltip contentStyle={tooltipStyle} />
+        <Tooltip contentStyle={tooltipStyle} formatter={numberFmt} />
       </RadialBarChart>
     </ResponsiveContainer>
   );

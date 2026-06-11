@@ -79,6 +79,7 @@ export function Documents() {
     <div className="space-y-6">
       <PageHeader
         title="Documents & Downloads"
+        eyebrow="Library"
         subtitle="All financial reports, statements and supporting documents in one place."
         actions={
           <Button

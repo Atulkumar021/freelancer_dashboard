@@ -51,6 +51,7 @@ export const api = {
   purchases:   () => get<any>(`/api/purchases/${COMPANY_ID}`),
   cashflow:    () => get<any>(`/api/cashflow/${COMPANY_ID}`),
   balanceSheet:() => get<any>(`/api/balance-sheet/${COMPANY_ID}`),
+  workingCapital:() => get<any>(`/api/working-capital/${COMPANY_ID}`),
   compliance:  () => get<any>(`/api/compliance/${COMPANY_ID}`),
   ratios:      () => get<any>(`/api/ratios/${COMPANY_ID}`),
   payroll:     () => get<any>(`/api/payroll/${COMPANY_ID}`),

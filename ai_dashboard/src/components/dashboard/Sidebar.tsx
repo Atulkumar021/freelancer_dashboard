@@ -55,9 +55,73 @@ const navGroups: NavGroup[] = [
   },
 ];
 
+function NavItem({
+  to, label, icon: Icon, badge, active, collapsed, index,
+}: {
+  to: string;
+  label: string;
+  icon: React.ElementType;
+  badge?: string;
+  active: boolean;
+  collapsed: boolean;
+  index: number;
+}) {
+  return (
+    <Link
+      to={to}
+      title={collapsed ? label : undefined}
+      style={{ animationDelay: `${Math.min(index * 25, 300)}ms` }}
+      className={cn(
+        "group/nav relative flex items-center rounded-md text-[13px] overflow-hidden",
+        "transition-all duration-300 active:scale-[0.97] animate-fade-in",
+        collapsed ? "justify-center px-0 py-2.5" : "px-3 py-2",
+        active
+          ? "bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent text-amber-300 font-medium"
+          : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent hover:translate-x-0.5",
+      )}
+    >
+      {/* Gold rail on the active item */}
+      {active && (
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-[2.5px] rounded-r-full bg-gradient-gold" aria-hidden />
+      )}
+      {/* Soft gold sweep on hover */}
+      <span className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/5 to-amber-500/0 opacity-0 group-hover/nav:opacity-100 transition-opacity duration-300 pointer-events-none" aria-hidden />
+
+      <Icon className={cn(
+        "shrink-0 transition-all duration-150 group-hover/nav:scale-110",
+        collapsed ? "size-[17px]" : "size-[15px]",
+        active ? "text-amber-400" : "text-sidebar-foreground/50 group-hover/nav:text-amber-300/80",
+      )} />
+
+      {/* Label stays mounted and animates with the sidebar width — no popping */}
+      <span className={cn(
+        "relative truncate whitespace-nowrap transition-all duration-300",
+        collapsed ? "w-0 ml-0 opacity-0" : "flex-1 ml-2.5 opacity-100",
+      )}>
+        {label}
+      </span>
+
+      {!collapsed && (
+        <>
+          {badge && (
+            <span className="relative text-[8px] font-bold px-1 py-0.5 rounded ml-1.5" style={{ background: "#c9a84c", color: "#0d1117" }}>
+              {badge}
+            </span>
+          )}
+          {/* Active pulse dot at the row end */}
+          {active && (
+            <span className="relative size-1 rounded-full bg-amber-400 shrink-0 ml-1.5" aria-hidden />
+          )}
+        </>
+      )}
+    </Link>
+  );
+}
+
 export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const pathname = useLocation().pathname;
   const { isRole } = useAuth();
+  let itemIndex = 0;
 
   return (
     <aside
@@ -68,25 +132,28 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
     >
       {/* Brand */}
       <div className={cn(
-        "flex items-center border-b border-sidebar-border shrink-0",
+        "group/brand relative flex items-center border-b border-sidebar-border shrink-0 overflow-hidden",
         collapsed ? "justify-center px-0 py-4" : "gap-3 px-4 py-4",
       )}>
+        {/* Faint gold radial behind the brand */}
+        <div className="absolute -left-8 -top-8 size-24 rounded-full bg-gradient-gold opacity-[0.07] blur-xl pointer-events-none" aria-hidden />
         <div className={cn(
-          "rounded-lg bg-white flex items-center justify-center shrink-0 p-1",
-          collapsed ? "size-9" : "size-9",
+          "relative rounded-lg bg-white flex items-center justify-center shrink-0 p-1 size-9",
+          "ring-1 ring-amber-400/30 transition-all duration-300 group-hover/brand:ring-amber-400/60 group-hover/brand:shadow-[0_0_16px_-4px_rgba(201,168,76,0.5)]",
         )}>
           <img src={logo} alt="Consultara Global" className="size-full object-contain" />
         </div>
-        {!collapsed && (
-          <div className="min-w-0">
-            <div className="font-brand text-[14px] font-semibold leading-tight text-white truncate">
-              Consultara Global
-            </div>
-            <div className="text-[9px] tracking-[0.18em] uppercase mt-0.5" style={{ color: "#c9a84c" }}>
-              VFD · VCFO Platform
-            </div>
+        <div className={cn(
+          "relative min-w-0 overflow-hidden transition-all duration-300",
+          collapsed ? "w-0 opacity-0" : "opacity-100",
+        )}>
+          <div className="font-brand text-[14px] font-semibold leading-tight text-white truncate whitespace-nowrap">
+            Consultara Global
           </div>
-        )}
+          <div className="text-[9px] tracking-[0.18em] uppercase mt-0.5 whitespace-nowrap" style={{ color: "#c9a84c" }}>
+            VFD · VCFO Platform
+          </div>
+        </div>
       </div>
 
       {/* Navigation groups */}
@@ -94,45 +161,23 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
         {navGroups.map((group) => (
           <div key={group.group} className="mb-1">
             {!collapsed && (
-              <div className="px-4 py-1.5">
+              <div className="px-4 py-1.5 flex items-center gap-1.5">
+                <span className="inline-block w-2.5 h-px bg-amber-400/30" aria-hidden />
                 <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-sidebar-foreground/35">
                   {group.group}
                 </span>
               </div>
             )}
             <div className="px-2 space-y-0.5">
-              {group.items.map((item) => {
-                const active = pathname === item.to;
-                const Icon   = item.icon;
-                return (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    title={collapsed ? item.label : undefined}
-                    className={cn(
-                      "flex items-center rounded-md text-[13px] transition-colors duration-100",
-                      collapsed ? "justify-center px-0 py-2.5" : "gap-2.5 px-3 py-2",
-                      active
-                        ? "bg-amber-500/15 text-amber-300 font-medium"
-                        : "text-sidebar-foreground/60 hover:text-sidebar-foreground/90 hover:bg-sidebar-accent",
-                    )}
-                  >
-                    <Icon className={cn("shrink-0", collapsed ? "size-[17px]" : "size-[15px]",
-                      active ? "text-amber-400" : "text-sidebar-foreground/50",
-                    )} />
-                    {!collapsed && (
-                      <>
-                        <span className="flex-1 truncate">{item.label}</span>
-                        {item.badge && (
-                          <span className="text-[8px] font-bold px-1 py-0.5 rounded" style={{ background: "#c9a84c", color: "#0d1117" }}>
-                            {item.badge}
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </Link>
-                );
-              })}
+              {group.items.map((item) => (
+                <NavItem
+                  key={item.to}
+                  {...item}
+                  active={pathname === item.to}
+                  collapsed={collapsed}
+                  index={itemIndex++}
+                />
+              ))}
             </div>
           </div>
         ))}
@@ -141,22 +186,14 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       {/* Admin-only: Manage Users */}
       {isRole('superadmin', 'admin') && (
         <div className="px-2 pb-1">
-          <Link
+          <NavItem
             to="/users"
-            title={collapsed ? 'Manage Users' : undefined}
-            className={cn(
-              "flex items-center rounded-md text-[13px] transition-colors duration-100",
-              collapsed ? "justify-center px-0 py-2.5" : "gap-2.5 px-3 py-2",
-              pathname === '/users'
-                ? "bg-amber-500/15 text-amber-300 font-medium"
-                : "text-sidebar-foreground/60 hover:text-sidebar-foreground/90 hover:bg-sidebar-accent",
-            )}
-          >
-            <UserCog className={cn("shrink-0", collapsed ? "size-[17px]" : "size-[15px]",
-              pathname === '/users' ? "text-amber-400" : "text-sidebar-foreground/50"
-            )} />
-            {!collapsed && <span className="flex-1 truncate">Manage Users</span>}
-          </Link>
+            label="Manage Users"
+            icon={UserCog}
+            active={pathname === '/users'}
+            collapsed={collapsed}
+            index={itemIndex++}
+          />
         </div>
       )}
 
@@ -165,12 +202,17 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
         <button
           onClick={onToggle}
           className={cn(
-            "w-full flex items-center rounded-md py-2 text-[11px] text-sidebar-foreground/40 hover:text-sidebar-foreground/70 hover:bg-sidebar-accent transition-colors",
+            "w-full flex items-center rounded-md py-2 text-[11px] text-sidebar-foreground/40 hover:text-sidebar-foreground/80 hover:bg-sidebar-accent transition-all duration-150 active:scale-[0.97]",
             collapsed ? "justify-center" : "gap-2 px-2",
           )}
         >
-          <ChevronLeft className={cn("size-4 shrink-0 transition-transform duration-200", collapsed && "rotate-180")} />
-          {!collapsed && "Collapse sidebar"}
+          <ChevronLeft className={cn("size-4 shrink-0 transition-transform duration-300", collapsed && "rotate-180")} />
+          <span className={cn(
+            "whitespace-nowrap overflow-hidden transition-all duration-300",
+            collapsed ? "w-0 opacity-0" : "opacity-100",
+          )}>
+            Collapse sidebar
+          </span>
         </button>
       </div>
     </aside>

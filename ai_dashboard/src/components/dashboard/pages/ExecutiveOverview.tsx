@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertTriangle, ArrowUpRight, Building2, CheckCircle2, Clock,
   CreditCard, Download, HelpCircle, MessageSquare, ShieldAlert,
@@ -14,6 +14,7 @@ import { Panel, SectionTitle } from "../Primitives";
 import { BarsCompare, MultiLine, TrendArea } from "../Charts";
 import { downloadMockReport, printCurrentPage } from "@/lib/exportUtils";
 import { DrillDownModal, useDrillDown } from "../DrillDownModal";
+import { AnimatedValue } from "../Animated";
 
 /* ═══════════════════════════════ DATA ═══════════════════════════════════════ */
 
@@ -136,18 +137,18 @@ const finPositionCards = [
 ];
 
 const snapshotItems = [
-  { label: "Total Customers",        value: "1,284", icon: Users,    color: "text-foreground",    bg: "bg-secondary/50" },
-  { label: "Active Customers",       value: "612",   icon: Users,    color: "text-emerald-700",   bg: "bg-emerald-50" },
-  { label: "Total Vendors",          value: "418",   icon: Building2, color: "text-foreground",   bg: "bg-secondary/50" },
-  { label: "Active Vendors",         value: "207",   icon: Building2, color: "text-emerald-700",  bg: "bg-emerald-50" },
-  { label: "Invoices Raised (MTD)",  value: "342",   icon: CreditCard, color: "text-blue-700",    bg: "bg-blue-50" },
-  { label: "Bills Booked (MTD)",     value: "186",   icon: Wallet,   color: "text-blue-700",      bg: "bg-blue-50" },
-  { label: "Overdue Receivables",    value: "47",    icon: AlertTriangle, color: "text-red-600",  bg: "bg-red-50", alert: true },
-  { label: "Overdue Vendor Bills",   value: "12",    icon: AlertTriangle, color: "text-amber-700", bg: "bg-amber-50", alert: true },
-  { label: "Bank Accounts",          value: "8",     icon: Building2, color: "text-foreground",   bg: "bg-secondary/50" },
-  { label: "Pending Reconciliations",value: "3",     icon: Clock,    color: "text-amber-700",     bg: "bg-amber-50", alert: true },
-  { label: "Pending Compliances",    value: "2",     icon: ShieldAlert, color: "text-red-600",    bg: "bg-red-50", alert: true },
-  { label: "Open Action Points",     value: "9",     icon: Zap,      color: "text-amber-700",     bg: "bg-amber-50", alert: true },
+  { label: "Total Customers",        value: "1,284", icon: Users,    color: "text-foreground",    bg: "bg-secondary/50", to: "/sales" },
+  { label: "Active Customers",       value: "612",   icon: Users,    color: "text-emerald-700",   bg: "bg-emerald-50",   to: "/sales" },
+  { label: "Total Vendors",          value: "418",   icon: Building2, color: "text-foreground",   bg: "bg-secondary/50", to: "/purchases" },
+  { label: "Active Vendors",         value: "207",   icon: Building2, color: "text-emerald-700",  bg: "bg-emerald-50",   to: "/purchases" },
+  { label: "Invoices Raised (MTD)",  value: "342",   icon: CreditCard, color: "text-blue-700",    bg: "bg-blue-50",      to: "/sales" },
+  { label: "Bills Booked (MTD)",     value: "186",   icon: Wallet,   color: "text-blue-700",      bg: "bg-blue-50",      to: "/purchases" },
+  { label: "Overdue Receivables",    value: "47",    icon: AlertTriangle, color: "text-red-600",  bg: "bg-red-50", alert: true, to: "/sales" },
+  { label: "Overdue Vendor Bills",   value: "12",    icon: AlertTriangle, color: "text-amber-700", bg: "bg-amber-50", alert: true, to: "/purchases" },
+  { label: "Bank Accounts",          value: "8",     icon: Building2, color: "text-foreground",   bg: "bg-secondary/50", to: "/cashflow" },
+  { label: "Pending Reconciliations",value: "3",     icon: Clock,    color: "text-amber-700",     bg: "bg-amber-50", alert: true, to: "/cashflow" },
+  { label: "Pending Compliances",    value: "2",     icon: ShieldAlert, color: "text-red-600",    bg: "bg-red-50", alert: true, to: "/compliance" },
+  { label: "Open Action Points",     value: "9",     icon: Zap,      color: "text-amber-700",     bg: "bg-amber-50", alert: true, to: "/alerts" },
 ];
 
 const execAlerts = [
@@ -245,6 +246,27 @@ function MoMChart() {
   );
 }
 
+/** Tiny deterministic sparkline — gives each KPI card a sense of trajectory. */
+function Sparkline({ seed, up, good }: { seed: string; up: boolean; good: boolean }) {
+  const points = useMemo(() => {
+    let h = 0;
+    for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) % 997;
+    const pts = Array.from({ length: 9 }, (_, i) =>
+      50 + (up ? i * 4 : -i * 4) + Math.sin((i + h) * 1.7) * 9
+    );
+    const min = Math.min(...pts), max = Math.max(...pts), span = max - min || 1;
+    return pts.map((p, i) => `${(i / 8) * 100},${26 - ((p - min) / span) * 22}`);
+  }, [seed, up]);
+  const color = good ? "#16a34a" : "#dc2626";
+  const [lastX, lastY] = points[points.length - 1].split(",");
+  return (
+    <svg viewBox="0 0 100 28" preserveAspectRatio="none" className="w-full h-6 mt-2 opacity-50 group-hover:opacity-90 transition-opacity" aria-hidden>
+      <polyline points={points.join(" ")} fill="none" stroke={color} strokeWidth="1.75" vectorEffect="non-scaling-stroke" />
+      <circle cx={lastX} cy={lastY} r="2" fill={color} />
+    </svg>
+  );
+}
+
 function KpiTooltip({ text }: { text: string }) {
   return (
     <span className="relative group inline-flex items-center ml-1 align-middle">
@@ -275,12 +297,17 @@ function KpiCard({ label, value, prev, mvt, deltaPct, up, good, highlight, toolt
     <div
       onClick={onClick}
       className={[
-        "relative rounded-xl border bg-card p-4 shadow-sm transition-all duration-150",
-        "hover:shadow-md hover:border-amber-200/60",
-        highlight ? "border-l-[3px] border-l-amber-400 border-border" : "border-border",
+        "group relative rounded-xl border bg-card p-4 shadow-card transition-all duration-200 overflow-hidden",
+        "hover:shadow-elegant hover:-translate-y-0.5 hover:border-gold/40",
+        highlight ? "border-gold/30" : "border-border",
         onClick ? "cursor-pointer" : "",
       ].join(" ")}
     >
+      {highlight && (
+        <span className="absolute inset-x-0 top-0 h-[2.5px] bg-gradient-gold" aria-hidden />
+      )}
+      <span className="absolute -right-10 -top-10 size-24 rounded-full bg-gradient-gold opacity-0 group-hover:opacity-10 blur-xl transition-opacity duration-300 pointer-events-none" aria-hidden />
+
       {/* Label + tooltip */}
       <div className="flex items-center mb-2">
         <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground leading-none flex-1">
@@ -289,9 +316,9 @@ function KpiCard({ label, value, prev, mvt, deltaPct, up, good, highlight, toolt
         <KpiTooltip text={tooltip} />
       </div>
 
-      {/* Main value */}
+      {/* Main value — counts up on load */}
       <p className="text-[21px] font-bold tracking-tight tabular-nums text-foreground leading-none mb-2">
-        {value}
+        <AnimatedValue value={value} />
       </p>
 
       {/* Movement row */}
@@ -305,8 +332,8 @@ function KpiCard({ label, value, prev, mvt, deltaPct, up, good, highlight, toolt
             {mvt}
           </span>
         </div>
-        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-          good ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
+        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
+          good ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-red-50 text-red-600 border-red-100"
         }`}>
           {up ? "+" : ""}{deltaPct.toFixed(1)}%
         </span>
@@ -316,6 +343,8 @@ function KpiCard({ label, value, prev, mvt, deltaPct, up, good, highlight, toolt
       <p className="mt-1.5 text-[10px] text-muted-foreground leading-none">
         Prev: <span className="font-medium text-foreground/60">{prev}</span>
       </p>
+
+      <Sparkline seed={label} up={up} good={good} />
     </div>
   );
 }
@@ -333,6 +362,9 @@ export function ExecutiveOverview() {
   const { state, open, close } = useDrillDown();
   const [commentaryExpanded, setCommentaryExpanded] = useState(false);
   const [alertFilter, setAlertFilter] = useState<"all" | "high" | "med" | "low">("all");
+  const [trendPeriod, setTrendPeriod] = useState<3 | 6 | 12>(12);
+
+  const visibleTrend = trendPeriod === 12 ? profitTrend : profitTrend.slice(-trendPeriod);
 
   const visibleAlerts = alertFilter === "all"
     ? execAlerts
@@ -376,7 +408,11 @@ export function ExecutiveOverview() {
         <div className="radial-gold absolute inset-0 pointer-events-none" />
         <div className="relative flex flex-wrap items-start gap-5 justify-between">
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] mb-2 text-gold">
+            <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] mb-2 text-gold">
+              <span className="relative flex size-1.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
+                <span className="relative inline-flex size-1.5 rounded-full bg-emerald-400" />
+              </span>
               AI Executive Briefing · Generated 2 minutes ago
             </p>
             <p className="text-sm text-white/85 leading-relaxed max-w-3xl">
@@ -390,7 +426,7 @@ export function ExecutiveOverview() {
               { label: "Risk Level",      value: "Low" },
               { label: "YoY Growth",      value: "↗ 13.1%" },
             ].map(t => (
-              <div key={t.label} className="glass-gold rounded-lg p-2.5 text-center">
+              <div key={t.label} className="glass-gold rounded-lg p-2.5 text-center transition-all duration-200 hover:scale-[1.04] hover:shadow-lg hover:shadow-amber-500/20 cursor-default">
                 <p className="text-[9px] font-bold uppercase tracking-[0.15em] mb-1 text-gold">{t.label}</p>
                 <p className="text-base font-semibold text-white">{t.value}</p>
               </div>
@@ -440,20 +476,28 @@ export function ExecutiveOverview() {
       <section className="grid lg:grid-cols-3 gap-5">
         <Panel className="lg:col-span-2">
           <SectionTitle
-            title="Profitability Trend — 12 Months"
+            title="Profitability Trend"
             subtitle="Revenue, Gross Profit, EBITDA and Net Profit · ₹ Lakhs"
             action={
-              <div className="flex gap-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.06em]">
-                {[["#a6905f","Revenue"],["#374151","GP"],["#16a34a","EBITDA"],["#d97706","Net"]].map(([c, l]) => (
-                  <span key={l} className="flex items-center gap-1">
-                    <span className="size-2 rounded-full" style={{ background: c as string }} />{l}
-                  </span>
+              <div className="flex gap-1 p-0.5 rounded-lg bg-secondary border border-border">
+                {([3, 6, 12] as const).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setTrendPeriod(p)}
+                    className={`px-2.5 py-1 rounded-md text-[10px] font-semibold transition-colors ${
+                      trendPeriod === p
+                        ? "bg-gradient-gold text-black shadow-gold"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {p}M
+                  </button>
                 ))}
               </div>
             }
           />
           <MultiLine
-            data={profitTrend}
+            data={visibleTrend}
             series={[
               { key: "Revenue",       color: "#a6905f", label: "Revenue" },
               { key: "Gross Profit",  color: "#374151", label: "GP" },
@@ -518,13 +562,17 @@ export function ExecutiveOverview() {
               return (
                 <div
                   key={item.label}
-                  className={`rounded-xl border border-border p-3.5 flex flex-col gap-2 hover:shadow-sm transition-shadow ${item.alert ? "hover:border-amber-200" : ""}`}
+                  onClick={() => navigate(item.to)}
+                  className="group/tile relative rounded-xl border border-border p-3.5 flex flex-col gap-2 cursor-pointer transition-all duration-200 hover:shadow-elegant hover:-translate-y-0.5 hover:border-gold/40"
                 >
-                  <div className={`size-8 rounded-lg flex items-center justify-center ${item.bg}`}>
+                  <ArrowUpRight className="absolute top-2.5 right-2.5 size-3 text-muted-foreground/0 group-hover/tile:text-gold transition-colors" />
+                  <div className={`size-8 rounded-lg flex items-center justify-center transition-transform duration-200 group-hover/tile:scale-110 ${item.bg}`}>
                     <Icon className={`size-4 ${item.color}`} />
                   </div>
                   <div>
-                    <p className={`text-lg font-bold tabular-nums leading-none ${item.color}`}>{item.value}</p>
+                    <p className={`text-lg font-bold tabular-nums leading-none ${item.color}`}>
+                      <AnimatedValue value={item.value} />
+                    </p>
                     <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{item.label}</p>
                   </div>
                 </div>
@@ -571,7 +619,7 @@ export function ExecutiveOverview() {
               return (
                 <li
                   key={i}
-                  className={`flex gap-2.5 rounded-lg border p-3 cursor-pointer transition-all hover:shadow-sm ${
+                  className={`group/alert flex gap-2.5 rounded-lg border p-3 cursor-pointer transition-all duration-150 hover:shadow-sm hover:translate-x-0.5 ${
                     a.sev === "high" ? "border-red-100 bg-red-50 hover:border-red-200"
                     : a.sev === "med"  ? "border-amber-100 bg-amber-50 hover:border-amber-200"
                     : "border-blue-100 bg-blue-50 hover:border-blue-200"
@@ -585,7 +633,7 @@ export function ExecutiveOverview() {
                       <Icon className="size-3 shrink-0" /> {a.meta}
                     </p>
                   </div>
-                  <ArrowUpRight className="size-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                  <ArrowUpRight className="size-3.5 text-muted-foreground shrink-0 mt-0.5 transition-transform duration-150 group-hover/alert:translate-x-0.5 group-hover/alert:-translate-y-0.5 group-hover/alert:text-gold" />
                 </li>
               );
             })}

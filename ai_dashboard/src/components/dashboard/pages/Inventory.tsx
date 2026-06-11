@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   AlertTriangle, ArrowUpRight, Download, Package, RefreshCw,
   TrendingDown, TrendingUp, Warehouse,
@@ -9,6 +9,7 @@ import { StatCard } from '../StatCard';
 import { BarsCompare, DonutChart, TrendArea, MultiLine } from '../Charts';
 import { DrillDownModal, useDrillDown } from '../DrillDownModal';
 import { exportToCSV, printCurrentPage } from '@/lib/exportUtils';
+import { api, fmt } from '@/lib/api';
 
 /* ── Static demo data ────────────────────────────────────────────────────── */
 const months = ['May','Jun','Jul','Aug','Sep','Oct'];
@@ -62,6 +63,11 @@ const topStockItems = [
 export function Inventory() {
   const { state, open, close } = useDrillDown();
   const [activeTab, setActiveTab] = useState<'all' | 'rm' | 'wip' | 'fg'>('all');
+  const [wc, setWc] = useState<any>(null);
+
+  useEffect(() => {
+    api.workingCapital().then((d) => setWc(d.summary)).catch(console.error);
+  }, []);
 
   const handleExportCSV = () => {
     exportToCSV(
@@ -129,13 +135,22 @@ export function Inventory() {
         />
       </section>
 
-      {/* Working Capital KPIs */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        <StatCard label="Inventory Days (DSI)"    value="48 days"   previous="52 days"   deltaPct={-7.7} />
-        <StatCard label="Inventory Turnover"      value="7.6x"      previous="7.0x"      deltaPct={8.6}  />
-        <StatCard label="Working Capital"         value="₹6.42 Cr"  previous="₹5.88 Cr" deltaPct={9.2}  highlight />
-        <StatCard label="WC Cycle (days)"         value="54 days"   previous="61 days"   deltaPct={-11.5} />
-      </section>
+      {/* Working Capital Summary */}
+      <Panel>
+        <SectionTitle title="Working Capital Summary" subtitle="Operating cycle — from Tally ledgers & vouchers" />
+        <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+          <StatCard label="Current Assets"               value={fmt(wc?.currentAssets ?? 0)} onClick={() => open('assets', 'Current Assets', fmt(wc?.currentAssets ?? 0))} />
+          <StatCard label="Current Liabilities"          value={fmt(wc?.currentLiabilities ?? 0)} onClick={() => open('liabilities', 'Current Liabilities', fmt(wc?.currentLiabilities ?? 0))} />
+          <StatCard label="Net Working Capital"          value={fmt(wc?.netWorkingCapital ?? 0)} highlight />
+          <StatCard label="Receivable Days"              value={`${wc?.receivableDays ?? 0}d`} onClick={() => open('debtors', 'Receivables', fmt(wc?.receivables ?? 0))} />
+          <StatCard label="Inventory Days"               value={`${wc?.inventoryDays ?? 0}d`} />
+          <StatCard label="Payable Days"                 value={`${wc?.payableDays ?? 0}d`} onClick={() => open('creditors', 'Payables', fmt(wc?.payables ?? 0))} />
+          <StatCard label="Cash Conversion Cycle"        value={`${wc?.cashConversionCycle ?? 0}d`} invertGood />
+          <StatCard label="WC Requirement"               value={fmt(wc?.workingCapitalRequirement ?? 0)} />
+          <StatCard label="WC Gap"                       value={fmt(wc?.workingCapitalGap ?? 0)} invertGood />
+          <StatCard label="Fund Utilisation"             value={`${wc?.fundUtilisationPct ?? 0}%`} invertGood />
+        </section>
+      </Panel>
 
       {/* Charts row */}
       <section className="grid lg:grid-cols-3 gap-4 sm:gap-6">
@@ -196,9 +211,9 @@ export function Inventory() {
           />
           <div className="grid grid-cols-3 gap-3 mt-4">
             {[
-              { label: 'DSO (Debtors Days)', value: '38d', color: 'text-amber-700' },
-              { label: 'DSI (Inventory Days)', value: '48d', color: 'text-amber-700' },
-              { label: 'DPO (Creditor Days)', value: '32d', color: 'text-emerald-700' },
+              { label: 'DSO (Debtors Days)', value: `${wc?.receivableDays ?? 0}d`, color: 'text-amber-700' },
+              { label: 'DSI (Inventory Days)', value: `${wc?.inventoryDays ?? 0}d`, color: 'text-amber-700' },
+              { label: 'DPO (Creditor Days)', value: `${wc?.payableDays ?? 0}d`, color: 'text-emerald-700' },
             ].map(c => (
               <div key={c.label} className="text-center p-3 rounded-lg bg-secondary/50 border border-border">
                 <p className="text-[10px] text-muted-foreground font-medium">{c.label}</p>
