@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Shield, ShieldCheck, User, X, Check, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Check, Loader2, Users as UsersIcon, UserCheck, ShieldCheck } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { BACKEND_URL } from '@/lib/api';
-import { Panel, PageHeader } from '@/components/dashboard/Primitives';
+import { Panel, SectionTitle, Badge } from '@/components/dashboard/Primitives';
 
 type Role = 'superadmin' | 'admin' | 'user';
 
@@ -17,23 +18,49 @@ interface UserRow {
   createdAt: string;
 }
 
-const ROLE_BADGE: Record<Role, string> = {
-  superadmin: 'bg-purple-50 text-purple-700 border-purple-100',
-  admin:      'bg-amber-50 text-amber-700 border-amber-100',
-  user:       'bg-emerald-50 text-emerald-700 border-emerald-100',
-};
+const ROLE_LABEL: Record<Role, string> = { superadmin: 'Super Admin', admin: 'Admin', user: 'User' };
+const ROLE_VARIANT: Record<Role, 'gold' | 'info' | 'default'> = { superadmin: 'gold', admin: 'info', user: 'default' };
 
-const ROLE_ICON: Record<Role, React.ElementType> = {
-  superadmin: Shield,
-  admin:      ShieldCheck,
-  user:       User,
-};
+/* ── Role-Based Access policy matrix (display + edit) ───────────────────── */
+const ROLE_COLS = ['Owner', 'CEO', 'CFO', 'Accountant', 'Dept Head', 'Branch', 'Auditor', 'Read-only'];
+const CAPABILITIES = [
+  'View dashboard', 'View financial statements', 'View ledgers', 'View vouchers',
+  'Download reports', 'View tax data', 'View salary / payroll', 'Add comments',
+  'Close action points', 'Manage users',
+];
+const ACCESS_DEFAULTS: number[][] = [
+  [0,1,2,3,4,5,6,7,8,9], [0,1,4,5,7,8], [0,1,2,3,4,5,6,7,8,9], [0,1,2,3,4,5,7,8],
+  [0,1,4,7,8], [0,1,4], [0,1,2,3,4,5], [0,1],
+];
+function seedAccess(): Set<string> {
+  const s = new Set<string>();
+  ACCESS_DEFAULTS.forEach((caps, role) => caps.forEach((cap) => s.add(`${cap}:${role}`)));
+  return s;
+}
 
 function apiFetch(path: string, token: string, opts?: RequestInit) {
   return fetch(`${BACKEND_URL}${path}`, {
     ...opts,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(opts?.headers ?? {}) },
   });
+}
+
+const inputCls =
+  "w-full h-9 px-3 rounded-lg bg-background border border-border text-sm text-foreground " +
+  "focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-colors";
+
+function StatTile({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 shadow-sm flex items-center gap-3">
+      <span className="size-10 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+        <Icon className="size-5 text-accent" />
+      </span>
+      <div>
+        <p className="text-xl font-bold tabular-nums leading-none text-foreground">{value}</p>
+        <p className="text-[11px] text-muted-foreground mt-1">{label}</p>
+      </div>
+    </div>
+  );
 }
 
 export function Users() {
@@ -45,6 +72,7 @@ export function Users() {
   const [saving,  setSaving]  = useState(false);
   const [deleting,setDeleting]= useState<string | null>(null);
   const [error,   setError]   = useState('');
+  const [access,  setAccess]  = useState<Set<string>>(seedAccess);
 
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'user' as Role, companyId: 'cmp_001', isActive: true });
 
@@ -52,36 +80,30 @@ export function Users() {
 
   async function loadUsers() {
     setLoading(true);
-    const r = await apiFetch('/api/auth/users', token!);
-    const data = await r.json();
-    setUsers(data.users ?? []);
+    try {
+      const r = await apiFetch('/api/auth/users', token!);
+      const data = await r.json();
+      setUsers(data.users ?? []);
+    } catch { /* backend offline — show empty state */ }
     setLoading(false);
   }
 
   function openCreate() {
     setForm({ name: '', email: '', password: '', role: 'user', companyId: me?.companyId ?? 'cmp_001', isActive: true });
-    setEditing(null);
-    setError('');
-    setModal('create');
+    setEditing(null); setError(''); setModal('create');
   }
-
   function openEdit(u: UserRow) {
     setForm({ name: u.name, email: u.email, password: '', role: u.role, companyId: u.companyId ?? 'cmp_001', isActive: u.isActive });
-    setEditing(u);
-    setError('');
-    setModal('edit');
+    setEditing(u); setError(''); setModal('edit');
   }
 
   async function saveUser() {
-    setError('');
-    setSaving(true);
+    setError(''); setSaving(true);
     try {
       const body: any = { name: form.name, email: form.email, role: form.role, companyId: form.companyId, isActive: form.isActive };
       if (form.password) body.password = form.password;
-
       if (modal === 'create') {
-        body.password = form.password;
-        if (!body.password) { setError('Password is required'); setSaving(false); return; }
+        if (!form.password) { setError('Password is required'); setSaving(false); return; }
         const r = await apiFetch('/api/auth/users', token!, { method: 'POST', body: JSON.stringify(body) });
         const data = await r.json();
         if (!r.ok) throw new Error(data.error);
@@ -107,154 +129,197 @@ export function Users() {
     await loadUsers();
   }
 
+  const toggleAccess = (cap: number, role: number) =>
+    setAccess((prev) => { const n = new Set(prev); const k = `${cap}:${role}`; n.has(k) ? n.delete(k) : n.add(k); return n; });
+
+  const activeCount = users.filter((u) => u.isActive).length;
+  const adminCount  = users.filter((u) => u.role === 'superadmin' || u.role === 'admin').length;
+
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Users & Access Management"
-        eyebrow="Admin Panel"
-        subtitle="Manage system users, roles and permissions."
-        actions={
-          <button
-            onClick={openCreate}
-            className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-semibold text-black"
-            style={{ background: '#c9a84c' }}
-          >
-            <Plus className="size-4" /> Add User
-          </button>
-        }
-      />
 
+      {/* ── Header ───────────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Users &amp; Access Control</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Manage system users, roles and permissions</p>
+        </div>
+        <button
+          onClick={openCreate}
+          className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-semibold bg-accent text-accent-foreground hover:bg-accent/90 transition-colors"
+        >
+          <Plus className="size-4" /> Add User
+        </button>
+      </div>
+
+      {/* ── Summary ──────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-4">
+        <StatTile icon={UsersIcon}   label="Total Users"        value={String(users.length)} />
+        <StatTile icon={UserCheck}   label="Active"             value={String(activeCount)} />
+        <StatTile icon={ShieldCheck} label="Admins / Superadmins" value={String(adminCount)} />
+      </div>
+
+      {/* ── User table ───────────────────────────────────────────────────── */}
       <Panel>
+        <SectionTitle title="User Management" subtitle="People with access to this workspace" />
         {loading ? (
           <div className="flex items-center justify-center py-12 text-muted-foreground text-sm gap-2">
             <Loader2 className="size-4 animate-spin" /> Loading users…
           </div>
+        ) : users.length === 0 ? (
+          <p className="text-center text-muted-foreground py-10 text-sm">No users found. Make sure the backend is running, then add a user.</p>
         ) : (
-          <div className="overflow-x-auto -mx-5">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border text-left">
-                  {['Name','Email','Role','Company','Status','Last Login','Actions'].map((h) => (
-                    <th key={h} className="px-5 pb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{h}</th>
-                  ))}
+                <tr className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">
+                  <th className="text-left font-semibold py-2.5 pr-2">User</th>
+                  <th className="text-left font-semibold py-2.5 px-2 hidden sm:table-cell">Email</th>
+                  <th className="text-left font-semibold py-2.5 px-2">Role</th>
+                  <th className="text-left font-semibold py-2.5 px-2 hidden lg:table-cell">Company</th>
+                  <th className="text-center font-semibold py-2.5 px-2">Status</th>
+                  <th className="text-left font-semibold py-2.5 px-2 hidden md:table-cell">Last Login</th>
+                  <th className="text-right font-semibold py-2.5 pl-2">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
-                {users.map((u) => {
-                  const RoleIcon = ROLE_ICON[u.role];
-                  return (
-                    <tr key={u.id} className="hover:bg-secondary/30 transition-colors">
-                      <td className="px-5 py-3 font-medium">{u.name}</td>
-                      <td className="px-5 py-3 text-muted-foreground">{u.email}</td>
-                      <td className="px-5 py-3">
-                        <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded border ${ROLE_BADGE[u.role]}`}>
-                          <RoleIcon className="size-3" />{u.role}
+              <tbody>
+                {users.map((u) => (
+                  <tr key={u.id} className="border-b border-border/60 last:border-0 hover:bg-secondary/50 transition-colors">
+                    <td className="py-3 pr-2">
+                      <span className="flex items-center gap-2.5">
+                        <span className="size-8 rounded-full bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center shrink-0">
+                          {u.name.split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase()}
                         </span>
-                      </td>
-                      <td className="px-5 py-3 text-muted-foreground">{u.companyId ?? '—'}</td>
-                      <td className="px-5 py-3">
-                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded ${u.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
-                          {u.isActive ? 'Active' : 'Disabled'}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-muted-foreground text-xs">
-                        {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Never'}
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => openEdit(u)} className="size-7 flex items-center justify-center rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors">
-                            <Pencil className="size-3.5" />
+                        <span className="font-medium text-foreground">{u.name}</span>
+                      </span>
+                    </td>
+                    <td className="py-3 px-2 text-muted-foreground hidden sm:table-cell">{u.email}</td>
+                    <td className="py-3 px-2"><Badge variant={ROLE_VARIANT[u.role]}>{ROLE_LABEL[u.role]}</Badge></td>
+                    <td className="py-3 px-2 text-muted-foreground text-xs hidden lg:table-cell">{u.companyId ?? '—'}</td>
+                    <td className="py-3 px-2 text-center">
+                      <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full', u.isActive ? 'bg-emerald-500/10 text-emerald-600' : 'bg-secondary text-muted-foreground')}>
+                        {u.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-2 text-muted-foreground text-xs hidden md:table-cell whitespace-nowrap">
+                      {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' }) : 'Never'}
+                    </td>
+                    <td className="py-3 pl-2">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => openEdit(u)} title="Edit" className="size-7 flex items-center justify-center rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors">
+                          <Pencil className="size-3.5" />
+                        </button>
+                        {isRole('superadmin') && u.id !== me?.id && (
+                          <button onClick={() => deleteUser(u.id)} disabled={deleting === u.id} title="Delete"
+                            className="size-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors">
+                            {deleting === u.id ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
                           </button>
-                          {isRole('superadmin') && u.id !== me?.id && (
-                            <button onClick={() => deleteUser(u.id)} disabled={deleting === u.id} className="size-7 flex items-center justify-center rounded hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors">
-                              {deleting === u.id ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
-            {users.length === 0 && (
-              <p className="text-center text-muted-foreground py-8 text-sm">No users found.</p>
-            )}
           </div>
         )}
       </Panel>
 
-      {/* Create / Edit modal */}
+      {/* ── Role-Based Access matrix ─────────────────────────────────────── */}
+      <Panel>
+        <SectionTitle title="Role-Based Access" subtitle="Capabilities each role can use — click any cell to change" />
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground py-2.5 pr-3 sticky left-0 bg-card">Capability</th>
+                {ROLE_COLS.map((r) => (
+                  <th key={r} className="text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground py-2.5 px-2 whitespace-nowrap">{r}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {CAPABILITIES.map((cap, ci) => (
+                <tr key={cap} className="border-b border-border/60 last:border-0">
+                  <td className="py-2 pr-3 font-medium text-foreground whitespace-nowrap sticky left-0 bg-card">{cap}</td>
+                  {ROLE_COLS.map((_, ri) => {
+                    const on = access.has(`${ci}:${ri}`);
+                    return (
+                      <td key={ri} className="py-2 px-2 text-center">
+                        <button
+                          onClick={() => toggleAccess(ci, ri)}
+                          className={cn('size-6 rounded-md inline-flex items-center justify-center transition-colors',
+                            on ? 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20' : 'bg-secondary text-muted-foreground/40 hover:text-muted-foreground')}
+                          title={on ? 'Allowed — click to revoke' : 'Denied — click to allow'}
+                        >
+                          {on ? <Check className="size-3.5" /> : <span className="text-xs">—</span>}
+                        </button>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+
+      {/* ── Create / Edit modal ──────────────────────────────────────────── */}
       {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-card shadow-2xl p-6">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-base font-semibold">{modal === 'create' ? 'Add New User' : 'Edit User'}</h3>
-              <button onClick={() => setModal(null)} className="size-7 flex items-center justify-center rounded hover:bg-secondary">
-                <X className="size-4" />
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setModal(null)}>
+          <div className="w-full max-w-md rounded-xl border border-border bg-card shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
+              <h3 className="text-sm font-semibold">{modal === 'create' ? 'Add New User' : 'Edit User'}</h3>
+              <button onClick={() => setModal(null)} className="p-1.5 rounded-md hover:bg-secondary transition-colors"><X className="size-4" /></button>
             </div>
 
-            <div className="space-y-4">
+            <div className="p-5 space-y-4">
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Full Name</label>
-                <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="Rahul Sharma"
-                  className="mt-1 w-full h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-amber-400" />
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Full Name</label>
+                <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Rahul Sharma" className={inputCls} />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email</label>
-                <input value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                  type="email" placeholder="user@company.com"
-                  className="mt-1 w-full h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-amber-400" />
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Email</label>
+                <input value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} type="email" placeholder="user@company.com" className={inputCls} />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Password {modal === 'edit' && <span className="text-muted-foreground font-normal normal-case">(leave blank to keep current)</span>}
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
+                  Password {modal === 'edit' && <span className="text-muted-foreground/70 font-normal normal-case">(leave blank to keep current)</span>}
                 </label>
-                <input value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                  type="password" placeholder="••••••••"
-                  className="mt-1 w-full h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-amber-400" />
+                <input value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} type="password" placeholder="••••••••" className={inputCls} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Role</label>
-                  <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as Role }))}
-                    className="mt-1 w-full h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-amber-400">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Role</label>
+                  <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as Role }))} className={inputCls}>
                     {isRole('superadmin') && <option value="superadmin">Super Admin</option>}
                     <option value="admin">Admin</option>
                     <option value="user">User</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Company ID</label>
-                  <input value={form.companyId} onChange={(e) => setForm((f) => ({ ...f, companyId: e.target.value }))}
-                    placeholder="cmp_001" disabled={!isRole('superadmin') || form.role === 'superadmin'}
-                    className="mt-1 w-full h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-amber-400 disabled:opacity-50" />
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Company ID</label>
+                  <input value={form.companyId} onChange={(e) => setForm((f) => ({ ...f, companyId: e.target.value }))} placeholder="cmp_001"
+                    disabled={!isRole('superadmin') || form.role === 'superadmin'} className={cn(inputCls, "disabled:opacity-50")} />
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <button type="button" onClick={() => setForm((f) => ({ ...f, isActive: !f.isActive }))}
-                  className={`size-5 rounded border-2 flex items-center justify-center transition-colors ${form.isActive ? 'bg-emerald-500 border-emerald-500' : 'border-border'}`}>
+                  className={cn('size-5 rounded border-2 flex items-center justify-center transition-colors', form.isActive ? 'bg-emerald-500 border-emerald-500' : 'border-border')}>
                   {form.isActive && <Check className="size-3 text-white" />}
                 </button>
                 <label className="text-sm text-foreground">Active account</label>
               </div>
 
-              {error && (
-                <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 border border-red-100">{error}</div>
-              )}
+              {error && <div className="text-sm text-red-500 bg-red-500/10 rounded-lg px-3 py-2 border border-red-500/20">{error}</div>}
+            </div>
 
-              <div className="flex justify-end gap-2 pt-2">
-                <button onClick={() => setModal(null)} className="h-9 px-4 rounded-lg text-sm border border-border hover:bg-secondary transition-colors">
-                  Cancel
-                </button>
-                <button onClick={saveUser} disabled={saving}
-                  className="h-9 px-4 rounded-lg text-sm font-semibold text-black flex items-center gap-1.5 disabled:opacity-50"
-                  style={{ background: '#c9a84c' }}>
-                  {saving ? <><Loader2 className="size-3.5 animate-spin" /> Saving…</> : modal === 'create' ? 'Create User' : 'Save Changes'}
-                </button>
-              </div>
+            <div className="flex justify-end gap-2 px-5 py-3.5 border-t border-border">
+              <button onClick={() => setModal(null)} className="h-9 px-4 rounded-lg text-sm border border-border hover:bg-secondary transition-colors">Cancel</button>
+              <button onClick={saveUser} disabled={saving}
+                className="h-9 px-4 rounded-lg text-sm font-semibold bg-accent text-accent-foreground hover:bg-accent/90 flex items-center gap-1.5 disabled:opacity-50 transition-colors">
+                {saving ? <><Loader2 className="size-3.5 animate-spin" /> Saving…</> : modal === 'create' ? 'Create User' : 'Save Changes'}
+              </button>
             </div>
           </div>
         </div>

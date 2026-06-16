@@ -1,698 +1,360 @@
-import { useMemo, useState } from "react";
 import {
-  AlertTriangle, ArrowUpRight, Building2, CheckCircle2, Clock,
-  CreditCard, Download, HelpCircle, MessageSquare, ShieldAlert,
-  TrendingDown, TrendingUp, Users, Wallet, Zap,
+  Info, TrendingUp, TrendingDown, Download, ArrowUpRight, Sparkles,
+  Users, UserCheck, Building2, FileText, CreditCard, AlertTriangle,
+  Landmark, Clock, ShieldAlert, Zap, MessageSquare, Wallet, CheckCircle2,
 } from "lucide-react";
 import {
-  BarChart, Bar, Cell, ResponsiveContainer, XAxis, YAxis,
-  CartesianGrid, Tooltip as RTooltip, ReferenceLine,
+  ResponsiveContainer, LineChart, Line, AreaChart, Area, BarChart, Bar, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ReferenceLine,
 } from "recharts";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Panel, SectionTitle } from "../Primitives";
-import { BarsCompare, MultiLine, TrendArea } from "../Charts";
-import { downloadMockReport, printCurrentPage } from "@/lib/exportUtils";
-import { DrillDownModal, useDrillDown } from "../DrillDownModal";
+import { cn } from "@/lib/utils";
 import { AnimatedValue } from "../Animated";
+
+const GOLD = "#c9a84c";
+const months12 = ["Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar"];
 
 /* ═══════════════════════════════ DATA ═══════════════════════════════════════ */
 
-const months12 = ["Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar"];
+type Card = { label: string; value: string; prev: string; mvt: string; deltaPct: number; up: boolean; good: boolean; tip: string };
+const summaryCards: Card[] = [
+  { label: "Revenue (MTD)",        value: "₹4.82 Cr", prev: "₹4.41 Cr", mvt: "+₹41 L",   deltaPct: 9.3,  up: true,  good: true,  tip: "Total sales billed in the current month." },
+  { label: "Revenue (YTD)",        value: "₹38.7 Cr", prev: "₹34.2 Cr", mvt: "+₹4.5 Cr", deltaPct: 13.1, up: true,  good: true,  tip: "Cumulative revenue from the start of the financial year." },
+  { label: "Gross Profit",         value: "₹1.94 Cr", prev: "₹1.78 Cr", mvt: "+₹16 L",   deltaPct: 9.0,  up: true,  good: true,  tip: "Revenue minus direct cost of goods sold." },
+  { label: "GP Margin",            value: "40.2%",    prev: "40.4%",    mvt: "-0.2 pp",  deltaPct: -0.4, up: false, good: false, tip: "Gross Profit as % of revenue. Target 35–45%." },
+  { label: "EBITDA",               value: "₹1.12 Cr", prev: "₹0.96 Cr", mvt: "+₹16 L",   deltaPct: 16.6, up: true,  good: true,  tip: "Operating profit before interest, tax, depreciation & amortisation." },
+  { label: "EBITDA Margin",        value: "23.2%",    prev: "21.8%",    mvt: "+1.4 pp",  deltaPct: 1.4,  up: true,  good: true,  tip: "EBITDA as % of revenue. Target > 18%." },
+  { label: "Net Profit",           value: "₹78.4 L",  prev: "₹64.1 L",  mvt: "+₹14.3 L", deltaPct: 22.3, up: true,  good: true,  tip: "Bottom-line profit after all expenses, interest and tax." },
+  { label: "Net Margin",           value: "16.3%",    prev: "14.5%",    mvt: "+1.8 pp",  deltaPct: 1.8,  up: true,  good: true,  tip: "Net Profit as % of revenue. Target > 12%." },
+  { label: "Cash & Bank",          value: "₹3.21 Cr", prev: "₹2.94 Cr", mvt: "+₹27 L",   deltaPct: 9.1,  up: true,  good: true,  tip: "Closing balance across all bank accounts and cash." },
+  { label: "Net Working Capital",  value: "₹6.84 Cr", prev: "₹6.52 Cr", mvt: "+₹32 L",   deltaPct: 4.9,  up: true,  good: true,  tip: "Current Assets minus Current Liabilities." },
+  { label: "Total Receivables",    value: "₹5.12 Cr", prev: "₹4.89 Cr", mvt: "+₹23 L",   deltaPct: 4.7,  up: true,  good: false, tip: "Outstanding customer invoices. Lower is better." },
+  { label: "Total Payables",       value: "₹2.18 Cr", prev: "₹2.34 Cr", mvt: "-₹16 L",   deltaPct: -6.8, up: false, good: true,  tip: "Outstanding vendor bills not yet paid." },
+  { label: "Current Ratio",        value: "2.14x",    prev: "2.08x",    mvt: "+0.06x",   deltaPct: 2.9,  up: true,  good: true,  tip: "Current Assets ÷ Current Liabilities. Target 1.5–2.5x." },
+  { label: "Quick Ratio",          value: "1.62x",    prev: "1.55x",    mvt: "+0.07x",   deltaPct: 4.5,  up: true,  good: true,  tip: "(Current Assets − Inventory) ÷ Current Liabilities. Target ≥ 1.0x." },
+  { label: "Debt-to-Equity",       value: "0.42x",    prev: "0.46x",    mvt: "-0.04x",   deltaPct: -8.7, up: false, good: true,  tip: "Total Debt ÷ Net Worth. Lower is healthier. Target < 0.5x." },
+  { label: "Cash Conversion Cycle", value: "38 days", prev: "44 days",  mvt: "-6 days",  deltaPct: -13.6, up: false, good: true, tip: "DSO + Inventory Days − DPO. Lower is better. Target < 45 days." },
+];
+
+const snapshot = [
+  { label: "Total Customers",   value: "1,284", icon: Users,         to: "/sales",      color: "#3b82f6" },
+  { label: "Active Customers",  value: "612",   icon: UserCheck,     to: "/sales",      color: "#22c55e" },
+  { label: "Total Vendors",     value: "418",   icon: Building2,     to: "/purchases",  color: "#a855f7" },
+  { label: "Active Vendors",    value: "207",   icon: Building2,     to: "/purchases",  color: "#06b6d4" },
+  { label: "Invoices (MTD)",    value: "342",   icon: FileText,      to: "/sales",      color: GOLD },
+  { label: "Bills Booked (MTD)", value: "186",  icon: CreditCard,    to: "/purchases",  color: "#ec4899" },
+  { label: "Overdue Receivables", value: "47",  icon: AlertTriangle, to: "/sales",      color: "#ef4444" },
+  { label: "Overdue Vendor Bills", value: "12", icon: AlertTriangle, to: "/purchases",  color: "#f97316" },
+  { label: "Bank Accounts",     value: "8",     icon: Landmark,      to: "/cashflow",   color: "#84cc16" },
+  { label: "Pending Reconciliations", value: "3", icon: Clock,       to: "/cashflow",   color: "#f59e0b" },
+  { label: "Pending Compliances", value: "2",   icon: ShieldAlert,   to: "/compliance", color: "#ef4444" },
+  { label: "Open Action Points", value: "9",    icon: Zap,           to: "/alerts",     color: "#f59e0b" },
+];
 
 const profitTrend = months12.map((m, i) => ({
   name: m,
-  Revenue:      280 + Math.round(Math.sin(i / 1.5) * 60 + i * 18),
-  "Gross Profit": 110 + Math.round(Math.sin(i / 1.8) * 22 + i * 7),
+  Revenue:        280 + Math.round(Math.sin(i / 1.5) * 60 + i * 18),
+  "Gross Profit": 112 + Math.round(Math.sin(i / 1.8) * 22 + i * 7),
   EBITDA:         60 + Math.round(Math.sin(i / 2) * 14 + i * 5),
   "Net Profit":   35 + Math.round(Math.sin(i / 2.4) * 10 + i * 3.5),
 }));
+const cashTrend = months12.map((m, i) => ({ name: m, cash: 180 + i * 12 + Math.round(Math.sin(i) * 25) }));
+const drVsCr = months12.slice(-8).map((m, i) => ({ name: m, Receivables: 380 + i * 12 + Math.round(Math.sin(i) * 30), Payables: 210 + Math.round(Math.cos(i) * 25) }));
+const budgetVsActual = months12.slice(-6).map((m, i) => ({ name: m, Budget: 420 + i * 8, Actual: 410 + i * 10 + Math.round(Math.sin(i) * 25) }));
+const momProfit = months12.slice(-8).map((m, i) => ({ name: m, change: [8, -6, 14, -4, 22, 18, -10, 22][i] ?? 0 }));
 
-const cashTrend = months12.map((m, i) => ({
-  name: m, "Cash & Bank": 180 + i * 12 + Math.round(Math.sin(i) * 25),
-}));
-
-const drVsCr = months12.slice(-8).map((m, i) => ({
-  name: m,
-  "Trade Receivables": 380 + i * 12 + Math.round(Math.sin(i) * 30),
-  "Trade Payables":    210 + Math.round(Math.cos(i) * 25),
-}));
-
-const budgetVsActual = months12.slice(-6).map((m, i) => ({
-  name: m,
-  "Budget Revenue": 420 + i * 8,
-  "Actual Revenue": 410 + i * 10 + Math.round(Math.sin(i) * 25),
-}));
-
-const momNetProfit = months12.slice(-8).map((m, i) => ({
-  name: m,
-  change: [8, -6, 14, -4, 22, 18, -10, 22][i] ?? 0,
-}));
-
-/* KPI Cards — grouped */
-const plCards = [
-  {
-    label: "Revenue (MTD)",   value: "₹4.82 Cr", prev: "₹4.41 Cr",
-    mvt: "+₹41 L", deltaPct: 9.3,  up: true,  good: true,
-    tooltip: "Total sales/revenue billed in the current month including all product and service income.",
-  },
-  {
-    label: "Revenue YTD",     value: "₹38.7 Cr", prev: "₹34.2 Cr",
-    mvt: "+₹4.5 Cr", deltaPct: 13.1, up: true,  good: true, highlight: true,
-    tooltip: "Cumulative revenue from the start of the financial year (Apr) to the current month.",
-  },
-  {
-    label: "Gross Profit",    value: "₹1.94 Cr", prev: "₹1.78 Cr",
-    mvt: "+₹16 L", deltaPct: 9.0,  up: true,  good: true,
-    tooltip: "Revenue minus direct cost of goods sold. Shows profit before indirect expenses.",
-  },
-  {
-    label: "GP Margin",       value: "40.2%",     prev: "40.4%",
-    mvt: "-0.2 pp", deltaPct: -0.4, up: false, good: false,
-    tooltip: "Gross Profit as % of Revenue. Measures production/procurement efficiency. Target: 35–45%.",
-  },
-  {
-    label: "EBITDA",          value: "₹1.12 Cr", prev: "₹0.96 Cr",
-    mvt: "+₹16 L", deltaPct: 16.6, up: true,  good: true,
-    tooltip: "Earnings before interest, tax, depreciation and amortisation. Core operating profit.",
-  },
-  {
-    label: "EBITDA Margin",   value: "23.2%",     prev: "21.8%",
-    mvt: "+1.4 pp", deltaPct: 1.4, up: true,  good: true,
-    tooltip: "EBITDA as % of Revenue. Reflects true operating leverage. Target: >18% for services.",
-  },
-  {
-    label: "Net Profit",      value: "₹78.4 L",  prev: "₹64.1 L",
-    mvt: "+₹14.3 L", deltaPct: 22.3, up: true, good: true, highlight: true,
-    tooltip: "Bottom-line profit after all expenses, interest and taxes. Ultimate measure of profitability.",
-  },
-  {
-    label: "Net Margin",      value: "16.3%",     prev: "14.5%",
-    mvt: "+1.8 pp", deltaPct: 1.8, up: true,  good: true,
-    tooltip: "Net Profit as % of Revenue. How much of every rupee of sales becomes profit. Target: >12%.",
-  },
+type Sev = "high" | "med" | "low";
+const alerts: { sev: Sev; text: string; meta: string; to: string }[] = [
+  { sev: "high", text: "₹38.4 L receivables overdue beyond 90 days across 12 accounts", meta: "Debtors ageing",     to: "/sales" },
+  { sev: "med",  text: "Payables of ₹64.2 L fall due within the next 7 / 15 / 30 days",  meta: "Payment calendar",  to: "/purchases" },
+  { sev: "high", text: "Cash balance projected below ₹3 Cr minimum threshold by 28 Jan", meta: "Cash forecast",     to: "/cashflow" },
+  { sev: "med",  text: "Marketing expenditure exceeds approved budget by 18.4%",         meta: "+₹7.5 L vs budget", to: "/pnl" },
+  { sev: "med",  text: "Revenue in Bengaluru branch declined 8.2% vs previous month",    meta: "Revenue decline",   to: "/sales" },
+  { sev: "low",  text: "Customer concentration: top 3 accounts represent 47% of revenue", meta: "Concentration risk", to: "/sales" },
+  { sev: "low",  text: "Vendor dependency: top 2 suppliers = 68% of direct purchases",    meta: "Supply chain risk", to: "/purchases" },
+  { sev: "high", text: "GSTR-3B due in 4 days — statutory deadline approaching",          meta: "Compliance",        to: "/compliance" },
+  { sev: "low",  text: "HDFC current account reconciliation pending — ₹4.8 L unmatched",  meta: "Bank reconciliation", to: "/cashflow" },
+  { sev: "low",  text: "Suspense ledger ₹1.2 L unmapped — unusual debit entry on 18 Oct", meta: "Unusual ledger move", to: "/balance-sheet" },
 ];
-
-const finPositionCards = [
-  {
-    label: "Cash & Bank",         value: "₹3.21 Cr", prev: "₹2.94 Cr",
-    mvt: "+₹27 L", deltaPct: 9.1,   up: true,  good: true, highlight: true,
-    tooltip: "Total closing balance across all bank accounts and petty cash as of end of month.",
-  },
-  {
-    label: "Net Working Capital",  value: "₹6.84 Cr", prev: "₹6.52 Cr",
-    mvt: "+₹32 L", deltaPct: 4.9,   up: true,  good: true,
-    tooltip: "Current Assets minus Current Liabilities. Measures short-term financial health.",
-  },
-  {
-    label: "Trade Receivables",    value: "₹5.12 Cr", prev: "₹4.89 Cr",
-    mvt: "+₹23 L", deltaPct: 4.7,   up: true,  good: false, invertGood: true,
-    tooltip: "Total outstanding customer invoices not yet collected. Lower is better — target DSO < 38 days.",
-  },
-  {
-    label: "Trade Payables",       value: "₹2.18 Cr", prev: "₹2.34 Cr",
-    mvt: "-₹16 L", deltaPct: -6.8,  up: false, good: true, invertGood: true,
-    tooltip: "Total outstanding vendor bills not yet paid. Moderate payables utilise credit terms optimally.",
-  },
-  {
-    label: "Current Ratio",        value: "2.14x",     prev: "2.08x",
-    mvt: "+0.06x", deltaPct: 2.9,   up: true,  good: true,
-    tooltip: "Current Assets ÷ Current Liabilities. Ability to pay short-term dues. Target: 1.5–2.5x.",
-  },
-  {
-    label: "Quick Ratio",          value: "1.62x",     prev: "1.55x",
-    mvt: "+0.07x", deltaPct: 4.5,   up: true,  good: true,
-    tooltip: "(Current Assets − Inventory) ÷ Current Liabilities. Stricter liquidity test. Target: ≥ 1.0x.",
-  },
-  {
-    label: "Debt-to-Equity",       value: "0.42x",     prev: "0.46x",
-    mvt: "-0.04x", deltaPct: -8.7,  up: false, good: true, invertGood: true,
-    tooltip: "Total Debt ÷ Net Worth. Measures financial leverage. Lower is healthier. Target: < 0.5x (SME).",
-  },
-  {
-    label: "Cash Conv. Cycle",     value: "38 days",   prev: "44 days",
-    mvt: "-6 days", deltaPct: -13.6, up: false, good: true, invertGood: true,
-    tooltip: "DSO + Inventory Days − DPO. Days to convert operations to cash. Target: < 45 days.",
-  },
-];
-
-const snapshotItems = [
-  { label: "Total Customers",        value: "1,284", icon: Users,    color: "text-foreground",    bg: "bg-secondary/50", to: "/sales" },
-  { label: "Active Customers",       value: "612",   icon: Users,    color: "text-emerald-700",   bg: "bg-emerald-50",   to: "/sales" },
-  { label: "Total Vendors",          value: "418",   icon: Building2, color: "text-foreground",   bg: "bg-secondary/50", to: "/purchases" },
-  { label: "Active Vendors",         value: "207",   icon: Building2, color: "text-emerald-700",  bg: "bg-emerald-50",   to: "/purchases" },
-  { label: "Invoices Raised (MTD)",  value: "342",   icon: CreditCard, color: "text-blue-700",    bg: "bg-blue-50",      to: "/sales" },
-  { label: "Bills Booked (MTD)",     value: "186",   icon: Wallet,   color: "text-blue-700",      bg: "bg-blue-50",      to: "/purchases" },
-  { label: "Overdue Receivables",    value: "47",    icon: AlertTriangle, color: "text-red-600",  bg: "bg-red-50", alert: true, to: "/sales" },
-  { label: "Overdue Vendor Bills",   value: "12",    icon: AlertTriangle, color: "text-amber-700", bg: "bg-amber-50", alert: true, to: "/purchases" },
-  { label: "Bank Accounts",          value: "8",     icon: Building2, color: "text-foreground",   bg: "bg-secondary/50", to: "/cashflow" },
-  { label: "Pending Reconciliations",value: "3",     icon: Clock,    color: "text-amber-700",     bg: "bg-amber-50", alert: true, to: "/cashflow" },
-  { label: "Pending Compliances",    value: "2",     icon: ShieldAlert, color: "text-red-600",    bg: "bg-red-50", alert: true, to: "/compliance" },
-  { label: "Open Action Points",     value: "9",     icon: Zap,      color: "text-amber-700",     bg: "bg-amber-50", alert: true, to: "/alerts" },
-];
-
-const execAlerts = [
-  { sev: "high", icon: AlertTriangle, text: "₹38.4 L receivables outstanding beyond 90 days across 12 accounts", meta: "12 customers · Debtors Ageing", link: "/sales" },
-  { sev: "high", icon: AlertTriangle, text: "GSTR-3B filing due in 4 days — ITC reconciliation not yet closed",   meta: "Compliance · 20 Oct deadline", link: "/compliance" },
-  { sev: "med",  icon: Clock,         text: "Vendor payments totalling ₹64.2 L fall due within the next 15 days", meta: "8 vendors · Payables schedule", link: "/purchases" },
-  { sev: "med",  icon: Clock,         text: "Cash balance projected to fall below ₹3 Cr threshold by 28 January", meta: "Cash forecast", link: "/cashflow" },
-  { sev: "med",  icon: TrendingDown,  text: "Marketing expenditure exceeds approved budget by 18.4% in October",  meta: "+₹7.5 L vs budget", link: "/pnl" },
-  { sev: "med",  icon: TrendingDown,  text: "Revenue in Bengaluru branch declined 8.2% vs previous month",        meta: "Branch performance", link: "/sales" },
-  { sev: "low",  icon: AlertTriangle, text: "Customer concentration: top 3 accounts represent 47% of revenue",    meta: "Concentration risk", link: "/sales" },
-  { sev: "low",  icon: AlertTriangle, text: "Vendor dependency: top 2 suppliers = 68% of direct purchases",       meta: "Supply chain risk", link: "/purchases" },
-  { sev: "low",  icon: Clock,         text: "HDFC Current Account reconciliation pending — ₹4.8 L unmatched",     meta: "Bank reconciliation · 3 pending", link: "/cashflow" },
-  { sev: "low",  icon: AlertTriangle, text: "Suspense ledger ₹1.2 L unmapped — unusual debit entry on 18 Oct",   meta: "Unusual ledger movement", link: "/balance-sheet" },
-] as const;
 
 const commentary = [
-  {
-    icon: TrendingUp,
-    color: "text-emerald-500",
-    head: "Monthly Performance Summary",
-    body: "October 2025 recorded revenue of ₹4.82 Cr, up 9.3% MoM and 13.1% YoY. Net profit of ₹78.4 L is the highest in the last 6 months. All four profitability metrics — gross, EBITDA, operating, and net — improved compared to September.",
-  },
-  {
-    icon: TrendingUp,
-    color: "text-emerald-500",
-    head: "Key Positive Movements",
-    body: "Export order execution from the APAC region drove revenue growth. Raw material costs fell 4% due to favourable procurement in Q2. Cash conversion cycle improved 6 days to 38 days. Debt-to-equity at 0.42x — best since FY23.",
-  },
-  {
-    icon: TrendingDown,
-    color: "text-red-400",
-    head: "Key Negative Movements",
-    body: "Marketing spend overran budget by ₹7.5 L (+18.4%). GP margin dipped marginally by 0.2 pp due to product mix shift. 90+ day receivables grew to ₹38.4 L. Bengaluru branch revenue declined 8.2% vs prior month.",
-  },
-  {
-    icon: MessageSquare,
-    color: "text-gold",
-    head: "Reason for Major Variance",
-    body: "The ₹7.5 L marketing overshoot is attributable to a digital campaign that was approved mid-month but the related PO cost was not captured in the budget revision. The receivables rise is driven by 3 APAC clients with extended 60-day credit terms. Both items were communicated to CFO on 28 Oct.",
-  },
-  {
-    icon: Wallet,
-    color: "text-blue-400",
-    head: "Liquidity Position",
-    body: "Closing cash of ₹3.21 Cr is comfortable for 30-day obligations. OD utilisation at 74% (₹2.96 Cr of ₹4.0 Cr limit). No immediate funding risk. However, if the three APAC receivables (₹28 L) are delayed beyond Nov 15, OD utilisation could reach 85%, triggering monitoring. Recommend expediting collections.",
-  },
-  {
-    icon: Building2,
-    color: "text-purple-400",
-    head: "Working Capital Position",
-    body: "Net working capital at ₹6.84 Cr. Cash conversion cycle improved to 38 days (target: <45). DSO at 38 days, inventory days at 48 days, DPO at 32 days. Working capital cycle is within acceptable parameters. Dead stock of ₹0.56 Cr requires clearance action before Q3 end.",
-  },
-  {
-    icon: Zap,
-    color: "text-amber-400",
-    head: "Immediate Action Points",
-    body: "① File GSTR-3B by 20 Oct and clear ITC reconciliation. ② Initiate structured collection drive on 12 overdue accounts (₹38.4 L). ③ Seek CFO approval for marketing budget revision ₹7.5 L. ④ Raise purchase orders for 3 critical reorder SKUs. ⑤ Clear HDFC account reconciliation (₹4.8 L).",
-  },
-  {
-    icon: CheckCircle2,
-    color: "text-gold",
-    head: "Management Recommendation",
-    body: "Defer ₹40 L of discretionary capex to Q3 to preserve liquidity headroom. Reduce customer concentration below 35% by onboarding 2 new enterprise accounts in Q3. Introduce a 60-day maximum credit term policy for APAC clients. Schedule a vendor rationalisation review to reduce supplier dependency below 50%.",
-  },
+  { icon: TrendingUp,    color: "#16a34a", head: "Performance Summary",    body: "October revenue of ₹4.82 Cr, up 9.3% MoM and 13.1% YoY. Net profit of ₹78.4 L is the strongest in six months; all profitability metrics improved over September." },
+  { icon: TrendingUp,    color: "#16a34a", head: "Key Positive Movements", body: "APAC export execution drove growth. Raw-material costs fell 4%. Cash conversion cycle improved 6 days to 38; debt-to-equity at 0.42x — best since FY23." },
+  { icon: TrendingDown,  color: "#ef4444", head: "Key Negative Movements", body: "Marketing overran budget by ₹7.5 L (+18.4%). GP margin dipped 0.2 pp on product mix. 90+ day receivables grew to ₹38.4 L." },
+  { icon: MessageSquare, color: GOLD,      head: "Reason for Major Variance", body: "The marketing overshoot is from a mid-month digital campaign whose PO was not captured in the budget. Receivables rose on three APAC clients on extended 60-day terms." },
+  { icon: Wallet,        color: "#3b82f6", head: "Liquidity Position",     body: "Closing cash of ₹3.21 Cr comfortably covers 30-day obligations. OD utilisation 74%. Expedite APAC collections to stay under the 85% threshold." },
+  { icon: Building2,     color: "#a855f7", head: "Working Capital Position", body: "Net working capital at ₹6.84 Cr. CCC improved to 38 days (target < 45). DSO 38, inventory 48, DPO 32. Dead stock ₹0.56 Cr needs clearance before Q3 end." },
+  { icon: Zap,           color: "#f59e0b", head: "Immediate Action Points", body: "① File GSTR-3B by 20 Oct. ② Collection drive on 12 overdue accounts. ③ Approve ₹7.5 L marketing revision. ④ Clear HDFC reconciliation (₹4.8 L)." },
+  { icon: CheckCircle2,  color: GOLD,      head: "Management Recommendation", body: "Defer ₹40 L discretionary capex to Q3 to preserve liquidity. Reduce customer concentration below 35%. Cap APAC credit at 60 days and run a vendor rationalisation review." },
 ];
 
 /* ═══════════════════════════════ SUB-COMPONENTS ═════════════════════════════ */
 
-const tooltipStyle = {
-  background: "#fff", border: "1px solid #e5e7eb", borderRadius: 6,
-  fontSize: 11, fontFamily: "Inter, system-ui, sans-serif",
-  boxShadow: "0 4px 16px -4px rgba(0,0,0,.10)", padding: "6px 10px",
-};
-const axisStyle = { fontSize: 11, fill: "#9ca3af", fontFamily: "Inter, system-ui, sans-serif" };
+function Card({ className, children }: { className?: string; children: React.ReactNode }) {
+  return <div className={cn("rounded-xl border border-border bg-card p-5 shadow-sm", className)}>{children}</div>;
+}
 
-function MoMChart() {
+function SectionHead({ label, action }: { label: string; action?: React.ReactNode }) {
   return (
-    <ResponsiveContainer width="100%" height={200}>
-      <BarChart data={momNetProfit} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-        <XAxis dataKey="name" tick={axisStyle} axisLine={false} tickLine={false} />
-        <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
-        <RTooltip
-          contentStyle={tooltipStyle}
-          formatter={(v: unknown) => { const n = Number(v ?? 0); return [`${n > 0 ? '+' : ''}${n}L`, 'Net Profit Change']; }}
-        />
-        <ReferenceLine y={0} stroke="#e5e7eb" />
-        <Bar dataKey="change" radius={[4, 4, 0, 0]} maxBarSize={28}>
-          {momNetProfit.map((d, i) => (
-            <Cell key={i} fill={d.change >= 0 ? "#16a34a" : "#ef4444"} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="flex items-center justify-between gap-3 mb-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground flex items-center gap-2">
+        <span className="size-1.5 rounded-full" style={{ background: GOLD }} /> {label}
+      </p>
+      {action}
+    </div>
   );
 }
 
-/** Tiny deterministic sparkline — gives each KPI card a sense of trajectory. */
-function Sparkline({ seed, up, good }: { seed: string; up: boolean; good: boolean }) {
-  const points = useMemo(() => {
-    let h = 0;
-    for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) % 997;
-    const pts = Array.from({ length: 9 }, (_, i) =>
-      50 + (up ? i * 4 : -i * 4) + Math.sin((i + h) * 1.7) * 9
-    );
-    const min = Math.min(...pts), max = Math.max(...pts), span = max - min || 1;
-    return pts.map((p, i) => `${(i / 8) * 100},${26 - ((p - min) / span) * 22}`);
-  }, [seed, up]);
-  const color = good ? "#16a34a" : "#dc2626";
-  const [lastX, lastY] = points[points.length - 1].split(",");
-  return (
-    <svg viewBox="0 0 100 28" preserveAspectRatio="none" className="w-full h-6 mt-2 opacity-50 group-hover:opacity-90 transition-opacity" aria-hidden>
-      <polyline points={points.join(" ")} fill="none" stroke={color} strokeWidth="1.75" vectorEffect="non-scaling-stroke" />
-      <circle cx={lastX} cy={lastY} r="2" fill={color} />
-    </svg>
-  );
-}
+const goodCls = (good: boolean) => good ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400";
 
-function KpiTooltip({ text }: { text: string }) {
+function Tip({ text }: { text: string }) {
   return (
-    <span className="relative group inline-flex items-center ml-1 align-middle">
-      <HelpCircle className="size-3 text-muted-foreground/50 cursor-help hover:text-gold transition-colors" />
-      <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 rounded-lg border border-border bg-card shadow-xl px-3 py-2 text-[11px] text-muted-foreground leading-snug opacity-0 group-hover:opacity-100 transition-opacity z-50 whitespace-normal text-left">
+    <span className="relative group/tip inline-flex items-center shrink-0">
+      <Info className="size-3.5 text-muted-foreground/50 cursor-help hover:text-accent transition-colors" />
+      <span className="pointer-events-none absolute bottom-full right-0 mb-2 w-48 rounded-lg border border-border bg-popover shadow-xl px-3 py-2 text-[11px] text-muted-foreground leading-snug opacity-0 group-hover/tip:opacity-100 transition-opacity z-50 text-left normal-case font-normal tracking-normal">
         {text}
       </span>
     </span>
   );
 }
 
-interface KpiCardProps {
-  label: string;
-  value: string;
-  prev: string;
-  mvt: string;
-  deltaPct: number;
-  up: boolean;
-  good: boolean;
-  highlight?: boolean;
-  invertGood?: boolean;
-  tooltip: string;
-  onClick?: () => void;
-}
-
-function KpiCard({ label, value, prev, mvt, deltaPct, up, good, highlight, tooltip, onClick }: KpiCardProps) {
+function KpiCard({ c }: { c: Card }) {
   return (
-    <div
-      onClick={onClick}
-      className={[
-        "group relative rounded-xl border bg-card p-4 shadow-card transition-all duration-200 overflow-hidden",
-        "hover:shadow-elegant hover:-translate-y-0.5 hover:border-gold/40",
-        highlight ? "border-gold/30" : "border-border",
-        onClick ? "cursor-pointer" : "",
-      ].join(" ")}
-    >
-      {highlight && (
-        <span className="absolute inset-x-0 top-0 h-[2.5px] bg-gradient-gold" aria-hidden />
-      )}
-      <span className="absolute -right-10 -top-10 size-24 rounded-full bg-gradient-gold opacity-0 group-hover:opacity-10 blur-xl transition-opacity duration-300 pointer-events-none" aria-hidden />
-
-      {/* Label + tooltip */}
-      <div className="flex items-center mb-2">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground leading-none flex-1">
-          {label}
-        </p>
-        <KpiTooltip text={tooltip} />
-      </div>
-
-      {/* Main value — counts up on load */}
-      <p className="text-[21px] font-bold tracking-tight tabular-nums text-foreground leading-none mb-2">
-        <AnimatedValue value={value} />
-      </p>
-
-      {/* Movement row */}
+    <div className="rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:border-accent/40 hover:shadow-md">
       <div className="flex items-center justify-between gap-1">
-        <div className="flex items-center gap-1">
-          {up
-            ? <TrendingUp className={`size-3 ${good ? "text-emerald-600" : "text-red-500"}`} />
-            : <TrendingDown className={`size-3 ${good ? "text-emerald-600" : "text-red-500"}`} />
-          }
-          <span className={`text-[11px] font-semibold ${good ? "text-emerald-700" : "text-red-600"}`}>
-            {mvt}
-          </span>
-        </div>
-        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
-          good ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-red-50 text-red-600 border-red-100"
-        }`}>
-          {up ? "+" : ""}{deltaPct.toFixed(1)}%
+        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground truncate">{c.label}</p>
+        <Tip text={c.tip} />
+      </div>
+      <p className="mt-2 text-[22px] font-bold tabular-nums tracking-tight text-foreground leading-none">
+        <AnimatedValue value={c.value} />
+      </p>
+      <div className="mt-2 flex items-center gap-1.5">
+        <span className={cn("inline-flex items-center gap-0.5 text-[11px] font-semibold tabular-nums", goodCls(c.good))}>
+          {c.up ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}{c.mvt}
+        </span>
+        <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded tabular-nums", c.good ? "bg-emerald-500/10" : "bg-red-500/10", goodCls(c.good))}>
+          {c.up ? "+" : ""}{c.deltaPct}%
         </span>
       </div>
-
-      {/* Previous */}
-      <p className="mt-1.5 text-[10px] text-muted-foreground leading-none">
-        Prev: <span className="font-medium text-foreground/60">{prev}</span>
-      </p>
-
-      <Sparkline seed={label} up={up} good={good} />
+      <div className="mt-2.5 flex items-center justify-between border-t border-border/70 pt-2">
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Prev</span>
+        <span className="text-[11px] font-semibold tabular-nums text-foreground/70">{c.prev}</span>
+      </div>
     </div>
   );
 }
 
-function AlertBadge({ sev }: { sev: string }) {
-  if (sev === "high") return <span className="size-1.5 rounded-full bg-red-500 shrink-0 mt-1.5" />;
-  if (sev === "med")  return <span className="size-1.5 rounded-full bg-amber-400 shrink-0 mt-1.5" />;
-  return <span className="size-1.5 rounded-full bg-blue-400 shrink-0 mt-1.5" />;
+const chTip = { background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 11, color: "var(--popover-foreground)" };
+const chAxis = { fontSize: 10, fill: "var(--muted-foreground)" };
+const chGrid = "var(--border)";
+
+function HealthGauge({ score }: { score: number }) {
+  const cx = 120, cy = 104, R = 86;
+  const polar = (r: number, deg: number): [number, number] => { const a = (deg * Math.PI) / 180; return [cx + r * Math.cos(a), cy - r * Math.sin(a)]; };
+  const ang = (v: number) => 180 - (v / 100) * 180;
+  const arc = (f: number, t: number) => { const [x1, y1] = polar(R, ang(f)); const [x2, y2] = polar(R, ang(t)); return `M ${x1} ${y1} A ${R} ${R} 0 0 1 ${x2} ${y2}`; };
+  const [nx, ny] = polar(R - 14, ang(score));
+  return (
+    <div className="flex flex-col items-center">
+      <svg viewBox="0 0 240 124" className="w-full max-w-[240px]">
+        <path d={arc(0, 100)}  fill="none" stroke="var(--border)" strokeWidth={12} strokeLinecap="round" />
+        <path d={arc(0, 40)}   fill="none" stroke="#ef4444" strokeWidth={12} strokeLinecap="round" />
+        <path d={arc(41, 69)}  fill="none" stroke="#eab308" strokeWidth={12} />
+        <path d={arc(70, 100)} fill="none" stroke="#22c55e" strokeWidth={12} strokeLinecap="round" />
+        <line x1={cx} y1={cy} x2={nx} y2={ny} stroke={GOLD} strokeWidth={3.5} strokeLinecap="round" />
+        <circle cx={cx} cy={cy} r={6} fill={GOLD} />
+        {[0, 25, 50, 75, 100].map((t) => { const [lx, ly] = polar(R + 14, ang(t)); return <text key={t} x={lx} y={ly} fontSize={9} fill="var(--muted-foreground)" textAnchor="middle" dominantBaseline="middle">{t}</text>; })}
+      </svg>
+      <p className="-mt-4 text-2xl font-bold tabular-nums text-foreground">{score}<span className="text-sm text-muted-foreground font-semibold">/100</span></p>
+      <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">Healthy</p>
+    </div>
+  );
 }
+
+const sevColor = (s: Sev) => s === "high" ? "#ef4444" : s === "med" ? "#f59e0b" : "#3b82f6";
 
 /* ═══════════════════════════════ MAIN COMPONENT ═════════════════════════════ */
 
 export function ExecutiveOverview() {
   const navigate = useNavigate();
-  const { state, open, close } = useDrillDown();
-  const [commentaryExpanded, setCommentaryExpanded] = useState(false);
-  const [alertFilter, setAlertFilter] = useState<"all" | "high" | "med" | "low">("all");
-  const [trendPeriod, setTrendPeriod] = useState<3 | 6 | 12>(12);
-
-  const visibleTrend = trendPeriod === 12 ? profitTrend : profitTrend.slice(-trendPeriod);
-
-  const visibleAlerts = alertFilter === "all"
-    ? execAlerts
-    : execAlerts.filter(a => a.sev === alertFilter);
-
-  const highCnt = execAlerts.filter(a => a.sev === "high").length;
-  const medCnt  = execAlerts.filter(a => a.sev === "med").length;
-  const lowCnt  = execAlerts.filter(a => a.sev === "low").length;
 
   return (
-    <div className="space-y-6 sm:space-y-7">
-      <DrillDownModal state={state} onClose={close} />
+    <div className="space-y-7">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold mb-1">
-            C-Suite Report · AI Synthesised · October FY 2025-26
-          </p>
-          <h1 className="text-xl font-bold tracking-tight">Executive Overview</h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-xl">
-            Consolidated financial snapshot of <span className="font-medium text-foreground">Meridian Industries Pvt. Ltd.</span> — profitability, liquidity, working capital and risk indicators.
-          </p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">VCFO · Executive Dashboard</p>
+          <h1 className="mt-1.5 text-2xl sm:text-[28px] font-bold tracking-tight text-foreground">Executive Overview</h1>
+          <p className="mt-1 text-sm text-muted-foreground"><span className="font-medium text-foreground">Meridian Industries Pvt. Ltd.</span> · October FY 2025-26 — full financial snapshot</p>
         </div>
-        <div className="flex gap-2 flex-wrap shrink-0">
-          <Button variant="outline" className="h-9 gap-1.5" onClick={() => downloadMockReport("Monthly MIS Pack Oct 2025", "pdf")}>
-            <Download className="size-4" /> MIS Pack
-          </Button>
-          <Button variant="outline" className="h-9 gap-1.5 hidden sm:inline-flex" onClick={printCurrentPage}>
-            <Download className="size-4" /> Print
-          </Button>
-          <Button className="h-9 gap-1.5 bg-gradient-gold text-black hover:opacity-90 shadow-gold" onClick={() => navigate("/pnl")}>
-            P&amp;L Detail <ArrowUpRight className="size-4" />
-          </Button>
-        </div>
+        <button className="inline-flex items-center gap-2 h-10 px-5 rounded-xl text-sm font-semibold text-black transition-all hover:scale-[1.02]"
+          style={{ background: "linear-gradient(135deg, #f5d77a, #c9a84c)", boxShadow: "0 6px 24px -8px rgba(201,168,76,0.55)" }}>
+          <Download className="size-4" /> Export Report
+        </button>
       </div>
 
-      {/* ── AI Briefing strip ──────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-slate-800 glass-dark text-white px-5 py-4 relative overflow-hidden">
-        <div className="grid-bg absolute inset-0 opacity-60 pointer-events-none" />
-        <div className="radial-gold absolute inset-0 pointer-events-none" />
-        <div className="relative flex flex-wrap items-start gap-5 justify-between">
-          <div className="flex-1 min-w-0">
-            <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] mb-2 text-gold">
-              <span className="relative flex size-1.5">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
-                <span className="relative inline-flex size-1.5 rounded-full bg-emerald-400" />
-              </span>
-              AI Executive Briefing · Generated 2 minutes ago
-            </p>
-            <p className="text-sm text-white/85 leading-relaxed max-w-3xl">
-              <span className="font-semibold text-white">Net profit increased 22.3% MoM</span>, driven by export order momentum and a 6-day improvement in the cash conversion cycle.
-              Two priority risks require board attention: marketing overspend (+18.4%) and 90+ day receivables (₹38.4 L). Recommended near-term actions: defer ₹40 L discretionary capex and activate collection protocols on top 12 overdue accounts.
-            </p>
-          </div>
-          <div className="grid grid-cols-3 gap-2 shrink-0 min-w-[240px]">
-            {[
-              { label: "Business Health", value: "A+" },
-              { label: "Risk Level",      value: "Low" },
-              { label: "YoY Growth",      value: "↗ 13.1%" },
-            ].map(t => (
-              <div key={t.label} className="glass-gold rounded-lg p-2.5 text-center transition-all duration-200 hover:scale-[1.04] hover:shadow-lg hover:shadow-amber-500/20 cursor-default">
-                <p className="text-[9px] font-bold uppercase tracking-[0.15em] mb-1 text-gold">{t.label}</p>
-                <p className="text-base font-semibold text-white">{t.value}</p>
+      {/* ── A. Financial Summary (16) ──────────────────────────────────────── */}
+      <section>
+        <SectionHead label="Financial Summary" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {summaryCards.map((c) => <KpiCard key={c.label} c={c} />)}
+        </div>
+      </section>
+
+      {/* ── B. Business Snapshot (12) ──────────────────────────────────────── */}
+      <section>
+        <SectionHead label="Business Snapshot · October 2025" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {snapshot.map((s) => {
+            const Icon = s.icon;
+            return (
+              <div key={s.label} onClick={() => navigate(s.to)}
+                className="group rounded-xl border border-border bg-card p-3 shadow-sm cursor-pointer transition-all hover:-translate-y-0.5 hover:border-accent/40">
+                <span className="size-8 rounded-lg flex items-center justify-center mb-2 transition-transform group-hover:scale-110"
+                  style={{ background: `${s.color}1f`, border: `1px solid ${s.color}44` }}>
+                  <Icon className="size-4" style={{ color: s.color }} />
+                </span>
+                <p className="text-lg font-bold tabular-nums text-foreground leading-none"><AnimatedValue value={s.value} /></p>
+                <p className="text-[10px] text-muted-foreground mt-1 leading-tight">{s.label}</p>
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── P&L Summary Cards ─────────────────────────────────────────────── */}
-      <section>
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-3 flex items-center gap-2">
-          <span className="size-1.5 rounded-full bg-gold" /> Profitability
-        </p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {plCards.map(c => (
-            <KpiCard
-              key={c.label} {...c}
-              onClick={() => {
-                if (c.label.includes("Revenue"))  open("revenue",  c.label, c.value);
-                else if (c.label.includes("Profit")) open("revenue", c.label, c.value);
-              }}
-            />
-          ))}
+            );
+          })}
         </div>
       </section>
 
-      {/* ── Financial Position Cards ───────────────────────────────────────── */}
-      <section>
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-3 flex items-center gap-2">
-          <span className="size-1.5 rounded-full bg-blue-500" /> Financial Position &amp; Ratios
-        </p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {finPositionCards.map(c => (
-            <KpiCard
-              key={c.label} {...c}
-              onClick={() => {
-                if (c.label.includes("Receivables")) open("debtors",    c.label, c.value);
-                else if (c.label.includes("Payables"))  open("creditors", c.label, c.value);
-                else if (c.label.includes("Assets") || c.label.includes("Cash")) open("assets", c.label, c.value);
-              }}
-            />
-          ))}
-        </div>
-      </section>
-
-      {/* ── Charts row 1: Profitability trend + Cash trend ─────────────────── */}
-      <section className="grid lg:grid-cols-3 gap-5">
-        <Panel className="lg:col-span-2">
-          <SectionTitle
-            title="Profitability Trend"
-            subtitle="Revenue, Gross Profit, EBITDA and Net Profit · ₹ Lakhs"
-            action={
-              <div className="flex gap-1 p-0.5 rounded-lg bg-secondary border border-border">
-                {([3, 6, 12] as const).map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setTrendPeriod(p)}
-                    className={`px-2.5 py-1 rounded-md text-[10px] font-semibold transition-colors ${
-                      trendPeriod === p
-                        ? "bg-gradient-gold text-black shadow-gold"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {p}M
-                  </button>
+      {/* ── C. Key Charts ──────────────────────────────────────────────────── */}
+      <section className="space-y-4">
+        <SectionHead label="Key Charts" />
+        <div className="grid lg:grid-cols-3 gap-4">
+          <Card className="lg:col-span-2">
+            <h3 className="text-[14px] font-semibold text-foreground mb-3">Profitability Trend <span className="text-muted-foreground font-normal">· Revenue, GP, EBITDA & Net Profit · 12M (₹ L)</span></h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={profitTrend} margin={{ top: 8, right: 10, left: -12, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={chGrid} vertical={false} />
+                <XAxis dataKey="name" tick={chAxis} axisLine={false} tickLine={false} />
+                <YAxis tick={chAxis} axisLine={false} tickLine={false} />
+                <RTooltip contentStyle={chTip} />
+                {[["Revenue", GOLD], ["Gross Profit", "#a855f7"], ["EBITDA", "#06b6d4"], ["Net Profit", "#22c55e"]].map(([k, col]) => (
+                  <Line key={k} type="monotone" dataKey={k} stroke={col} strokeWidth={2.25} dot={false} activeDot={{ r: 4 }} />
                 ))}
-              </div>
-            }
-          />
-          <MultiLine
-            data={visibleTrend}
-            series={[
-              { key: "Revenue",       color: "#a6905f", label: "Revenue" },
-              { key: "Gross Profit",  color: "#374151", label: "GP" },
-              { key: "EBITDA",        color: "#16a34a", label: "EBITDA" },
-              { key: "Net Profit",    color: "#d97706", label: "Net" },
-            ]}
-            height={280}
-          />
-        </Panel>
-        <Panel>
-          <SectionTitle title="Cash &amp; Bank Balance" subtitle="Closing balance — 12 months · ₹ Lakhs" />
-          <TrendArea data={cashTrend} dataKey="Cash & Bank" height={280} />
-        </Panel>
-      </section>
-
-      {/* ── Charts row 2: Debtors vs Creditors, Budget vs Actual, MoM ─────── */}
-      <section className="grid lg:grid-cols-3 gap-5">
-        <Panel>
-          <SectionTitle title="Receivables vs Payables" subtitle="Outstanding balance — last 8 months · ₹ Lakhs" />
-          <BarsCompare
-            data={drVsCr}
-            series={[
-              { key: "Trade Receivables", color: "#c9a84c", label: "Receivables" },
-              { key: "Trade Payables",    color: "#374151", label: "Payables" },
-            ]}
-            height={220}
-          />
-        </Panel>
-        <Panel>
-          <SectionTitle title="Revenue: Budget vs Actual" subtitle="Last 6 months · ₹ Lakhs" />
-          <BarsCompare
-            data={budgetVsActual}
-            series={[
-              { key: "Budget Revenue", color: "#c9a84c", label: "Budget" },
-              { key: "Actual Revenue", color: "#374151", label: "Actual" },
-            ]}
-            height={220}
-          />
-        </Panel>
-        <Panel>
-          <SectionTitle
-            title="Month-on-Month Profit Change"
-            subtitle="Net profit movement · +/− ₹ Lakhs"
-          />
-          <MoMChart />
-          <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
-            <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-emerald-600" />Increase</span>
-            <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-red-500" />Decrease</span>
-          </div>
-        </Panel>
-      </section>
-
-      {/* ── Business Snapshot + Alerts ────────────────────────────────────── */}
-      <section className="grid lg:grid-cols-3 gap-5">
-
-        {/* Snapshot */}
-        <Panel className="lg:col-span-2">
-          <SectionTitle title="Business Snapshot" subtitle="Operational metrics — October 2025" />
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {snapshotItems.map(item => {
-              const Icon = item.icon;
-              return (
-                <div
-                  key={item.label}
-                  onClick={() => navigate(item.to)}
-                  className="group/tile relative rounded-xl border border-border p-3.5 flex flex-col gap-2 cursor-pointer transition-all duration-200 hover:shadow-elegant hover:-translate-y-0.5 hover:border-gold/40"
-                >
-                  <ArrowUpRight className="absolute top-2.5 right-2.5 size-3 text-muted-foreground/0 group-hover/tile:text-gold transition-colors" />
-                  <div className={`size-8 rounded-lg flex items-center justify-center transition-transform duration-200 group-hover/tile:scale-110 ${item.bg}`}>
-                    <Icon className={`size-4 ${item.color}`} />
-                  </div>
-                  <div>
-                    <p className={`text-lg font-bold tabular-nums leading-none ${item.color}`}>
-                      <AnimatedValue value={item.value} />
-                    </p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{item.label}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Panel>
-
-        {/* Alerts panel */}
-        <Panel>
-          <SectionTitle
-            title="Executive Alerts"
-            subtitle="Items requiring management attention"
-            action={
-              <div className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-red-500" />
-                <span className="text-[10px] font-semibold text-muted-foreground">{highCnt} high</span>
-                <span className="size-2 rounded-full bg-amber-400 ml-1" />
-                <span className="text-[10px] font-semibold text-muted-foreground">{medCnt} med</span>
-              </div>
-            }
-          />
-
-          {/* Severity filter pills */}
-          <div className="flex gap-1.5 mb-3 flex-wrap">
-            {(["all","high","med","low"] as const).map(f => (
-              <button
-                key={f}
-                onClick={() => setAlertFilter(f)}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-colors uppercase ${
-                  alertFilter === f
-                    ? "bg-gradient-gold text-black"
-                    : "bg-secondary text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {f === "all" ? `All (${execAlerts.length})` : f === "high" ? `High (${highCnt})` : f === "med" ? `Med (${medCnt})` : `Low (${lowCnt})`}
-              </button>
-            ))}
-          </div>
-
-          <ul className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
-            {visibleAlerts.map((a, i) => {
-              const Icon = a.icon;
-              return (
-                <li
-                  key={i}
-                  className={`group/alert flex gap-2.5 rounded-lg border p-3 cursor-pointer transition-all duration-150 hover:shadow-sm hover:translate-x-0.5 ${
-                    a.sev === "high" ? "border-red-100 bg-red-50 hover:border-red-200"
-                    : a.sev === "med"  ? "border-amber-100 bg-amber-50 hover:border-amber-200"
-                    : "border-blue-100 bg-blue-50 hover:border-blue-200"
-                  }`}
-                  onClick={() => navigate(a.link)}
-                >
-                  <AlertBadge sev={a.sev} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] leading-snug text-foreground/85">{a.text}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
-                      <Icon className="size-3 shrink-0" /> {a.meta}
-                    </p>
-                  </div>
-                  <ArrowUpRight className="size-3.5 text-muted-foreground shrink-0 mt-0.5 transition-transform duration-150 group-hover/alert:translate-x-0.5 group-hover/alert:-translate-y-0.5 group-hover/alert:text-gold" />
-                </li>
-              );
-            })}
-          </ul>
-        </Panel>
-      </section>
-
-      {/* ── Management Commentary ─────────────────────────────────────────── */}
-      <div className="rounded-xl border border-slate-800 glass-dark text-white relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.03] bg-gradient-gold pointer-events-none" />
-        <div className="grid-bg absolute inset-0 opacity-30 pointer-events-none" />
-        <div className="relative p-6">
-
-          {/* Header */}
-          <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] mb-0.5 text-gold">
-                Management Commentary · October 2025 Performance Review
-              </p>
-              <p className="text-xs text-white/50">Prepared by Consultara Global VCFO Advisory Team</p>
+              </LineChart>
+            </ResponsiveContainer>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 justify-center">
+              {[["Revenue", GOLD], ["Gross Profit", "#a855f7"], ["EBITDA", "#06b6d4"], ["Net Profit", "#22c55e"]].map(([l, c]) => (
+                <span key={l} className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground"><span className="size-2.5 rounded-sm" style={{ background: c }} />{l}</span>
+              ))}
             </div>
-            <button
-              onClick={() => setCommentaryExpanded(v => !v)}
-              className="text-[11px] font-medium px-3 py-1.5 rounded-lg border border-white/20 hover:border-white/40 text-white/70 hover:text-white transition-all"
-            >
-              {commentaryExpanded ? "Show Less" : "Expand All"}
-            </button>
-          </div>
+          </Card>
+          <Card>
+            <h3 className="text-[14px] font-semibold text-foreground mb-3">Cash Balance Trend <span className="text-muted-foreground font-normal">· ₹ L</span></h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <AreaChart data={cashTrend} margin={{ top: 8, right: 10, left: -12, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="cashG" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={GOLD} stopOpacity={0.4} /><stop offset="100%" stopColor={GOLD} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke={chGrid} vertical={false} />
+                <XAxis dataKey="name" tick={chAxis} axisLine={false} tickLine={false} />
+                <YAxis tick={chAxis} axisLine={false} tickLine={false} />
+                <RTooltip contentStyle={chTip} />
+                <Area type="monotone" dataKey="cash" stroke={GOLD} strokeWidth={2.5} fill="url(#cashG)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </Card>
+        </div>
+        <div className="grid lg:grid-cols-3 gap-4">
+          <Card>
+            <h3 className="text-[14px] font-semibold text-foreground mb-3">Receivables vs Payables</h3>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={drVsCr} margin={{ top: 8, right: 6, left: -18, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={chGrid} vertical={false} />
+                <XAxis dataKey="name" tick={chAxis} axisLine={false} tickLine={false} />
+                <YAxis tick={chAxis} axisLine={false} tickLine={false} />
+                <RTooltip contentStyle={chTip} cursor={{ fill: "var(--secondary)" }} />
+                <Bar dataKey="Receivables" fill="#06b6d4" radius={[3,3,0,0]} maxBarSize={14} />
+                <Bar dataKey="Payables" fill="#ec4899" radius={[3,3,0,0]} maxBarSize={14} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+          <Card>
+            <h3 className="text-[14px] font-semibold text-foreground mb-3">Budget vs Actual</h3>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={budgetVsActual} margin={{ top: 8, right: 6, left: -18, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={chGrid} vertical={false} />
+                <XAxis dataKey="name" tick={chAxis} axisLine={false} tickLine={false} />
+                <YAxis tick={chAxis} axisLine={false} tickLine={false} />
+                <RTooltip contentStyle={chTip} cursor={{ fill: "var(--secondary)" }} />
+                <Bar dataKey="Budget" fill="#94a3b8" radius={[3,3,0,0]} maxBarSize={14} />
+                <Bar dataKey="Actual" fill={GOLD} radius={[3,3,0,0]} maxBarSize={14} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+          <Card>
+            <h3 className="text-[14px] font-semibold text-foreground mb-3">Month-on-Month Profit</h3>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={momProfit} margin={{ top: 8, right: 6, left: -18, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={chGrid} vertical={false} />
+                <XAxis dataKey="name" tick={chAxis} axisLine={false} tickLine={false} />
+                <YAxis tick={chAxis} axisLine={false} tickLine={false} />
+                <RTooltip contentStyle={chTip} cursor={{ fill: "var(--secondary)" }} formatter={(v: unknown) => { const n = Number(v ?? 0); return [`${n > 0 ? "+" : ""}${n} L`, "Net Profit Δ"]; }} />
+                <ReferenceLine y={0} stroke={chGrid} />
+                <Bar dataKey="change" radius={[3, 3, 0, 0]} maxBarSize={24}>
+                  {momProfit.map((d, i) => <Cell key={i} fill={d.change >= 0 ? "#16a34a" : "#ef4444"} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+        </div>
+      </section>
 
-          {/* 8 commentary sections */}
-          <div className={`grid md:grid-cols-2 gap-5 ${commentaryExpanded ? "" : "md:grid-cols-2"}`}>
-            {commentary.slice(0, commentaryExpanded ? 8 : 4).map((c, i) => {
+      {/* ── D. Alerts + Health + E. Commentary ─────────────────────────────── */}
+      <section className="grid lg:grid-cols-3 gap-4">
+        <div className="space-y-4">
+          <Card>
+            <h3 className="text-[14px] font-semibold text-foreground">Business Health Score</h3>
+            <p className="text-[11px] text-muted-foreground mb-1">Composite score · 0–100</p>
+            <HealthGauge score={78} />
+          </Card>
+          <Card>
+            <SectionHead label="Executive Alerts" action={<button onClick={() => navigate("/alerts")} className="text-[11px] font-medium text-accent hover:underline inline-flex items-center gap-0.5">View All <ArrowUpRight className="size-3" /></button>} />
+            <ul className="space-y-2 max-h-[360px] overflow-y-auto pr-1 scrollbar-thin">
+              {alerts.map((a, i) => (
+                <li key={i} onClick={() => navigate(a.to)}
+                  className="group flex gap-2.5 rounded-lg border border-border bg-secondary/30 p-2.5 cursor-pointer hover:border-accent/40 hover:bg-secondary/50 transition-colors">
+                  <span className="mt-1.5 size-1.5 rounded-full shrink-0" style={{ background: sevColor(a.sev) }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] leading-snug text-foreground">{a.text}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{a.meta}</p>
+                  </div>
+                  <ArrowUpRight className="size-3.5 text-muted-foreground/40 shrink-0 mt-0.5 group-hover:text-accent transition-colors" />
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </div>
+
+        <Card className="lg:col-span-2">
+          <SectionHead label="Management Commentary · October 2025" action={<span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"><Sparkles className="size-3.5 text-accent" /> AI-assisted</span>} />
+          <div className="grid sm:grid-cols-2 gap-x-5 gap-y-4">
+            {commentary.map((c) => {
               const Icon = c.icon;
               return (
-                <div key={i} className="flex gap-3">
-                  <div className={`size-7 rounded-md flex items-center justify-center shrink-0 bg-white/10 ${c.color}`}>
-                    <Icon className="size-4" />
+                <div key={c.head} className="flex gap-3">
+                  <div className="size-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${c.color}1a`, border: `1px solid ${c.color}40` }}>
+                    <Icon className="size-4" style={{ color: c.color }} />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] mb-1 text-white/80">{c.head}</p>
-                    <p className="text-[12px] text-white/65 leading-relaxed">{c.body}</p>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-foreground mb-1">{c.head}</p>
+                    <p className="text-[12px] text-muted-foreground leading-relaxed">{c.body}</p>
                   </div>
                 </div>
               );
             })}
           </div>
-
-          {/* Show-more hint when collapsed */}
-          {!commentaryExpanded && (
-            <button
-              onClick={() => setCommentaryExpanded(true)}
-              className="mt-4 w-full text-center text-[11px] text-white/40 hover:text-white/70 transition-colors border-t border-white/10 pt-3"
-            >
-              + Show {commentary.length - 4} more sections (Liquidity, Working Capital, Action Points, Recommendation)
-            </button>
-          )}
-        </div>
-      </div>
-
+        </Card>
+      </section>
     </div>
   );
 }

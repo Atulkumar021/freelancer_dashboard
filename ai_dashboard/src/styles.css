@@ -112,6 +112,57 @@
   --shadow-gold:        0 4px 20px -4px rgba(201,168,76,.35);
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   Dark theme — activated by `.dark` on <html> (see ThemeContext).
+   Remaps the same variable surface so every component built on
+   bg-card / text-foreground / border-border etc. flips automatically.
+   ══════════════════════════════════════════════════════════════════════ */
+.dark {
+  /* ── Page & content ─────────────────────── */
+  --background:         #0b0f14;
+  --foreground:         #e6edf3;
+
+  --card:               #131922;
+  --card-foreground:    #e6edf3;
+
+  --popover:            #131922;
+  --popover-foreground: #e6edf3;
+
+  --primary:            #f4f5f7;
+  --primary-foreground: #0b0f14;
+
+  --secondary:          #1a2233;
+  --secondary-foreground:#cbd5e1;
+
+  --muted:              #1a2233;
+  --muted-foreground:   #8b98a9;
+
+  --accent:             #c9a84c;
+  --accent-foreground:  #0b0f14;
+
+  --destructive:        #f87171;
+  --destructive-foreground: #0b0f14;
+
+  --success:            #34d399;
+  --success-foreground: #0b0f14;
+
+  --warning:            #fbbf24;
+  --warning-foreground: #0b0f14;
+
+  /* ── Borders & inputs ───────────────────── */
+  --border:             #243044;
+  --input:              #243044;
+  --ring:               #c9a84c;
+
+  /* Sidebar already navy — nudge it slightly darker than the page chrome */
+  --sidebar:                  #0b0f14;
+  --sidebar-accent:           #1a2233;
+  --sidebar-border:           #243044;
+
+  --shadow-card:        0 1px 3px rgba(0,0,0,.4), 0 2px 8px rgba(0,0,0,.3);
+  --shadow-elegant:     0 1px 3px rgba(0,0,0,.3), 0 8px 24px -8px rgba(0,0,0,.5);
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
@@ -226,6 +277,25 @@
     to   { opacity: 1; transform: translateY(0); }
   }
 
+  /* ── Luxury (premium dark) effects ───────────────────────────── */
+  @keyframes lux-pan {
+    0%, 100% { background-position: 0% 50%; }
+    50%      { background-position: 100% 50%; }
+  }
+  .animate-lux-pan { background-size: 200% 200%; animation: lux-pan 12s ease-in-out infinite; }
+
+  @keyframes lux-float {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-12px); }
+  }
+  .animate-lux-float { animation: lux-float 7s ease-in-out infinite; }
+
+  @keyframes lux-pulse {
+    0%, 100% { opacity: 0.55; }
+    50%      { opacity: 1; }
+  }
+  .animate-lux-pulse { animation: lux-pulse 2.4s ease-in-out infinite; }
+
   /* Refined text selection + main-area scrollbar */
   ::selection { background: rgba(201,168,76,0.25); }
   main::-webkit-scrollbar { width: 10px; }
@@ -236,4 +306,6 @@
     border: 2px solid var(--background);
   }
   main::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+  .dark main::-webkit-scrollbar-thumb { background: #2d3a4f; }
+  .dark main::-webkit-scrollbar-thumb:hover { background: #3d4d68; }
 }

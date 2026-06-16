@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
+import { AiAssistant } from "./AiAssistant";
 import { cn } from "@/lib/utils";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -50,11 +51,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         <TopBar onMenu={() => setMobileOpen(true)} />
         {/* Scroll container — ONLY this scrolls; min-h-0 prevents flex blowout */}
         <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-          <div className="w-full p-4 sm:p-6 lg:p-8">
+          <div className="w-full min-h-full p-4 sm:p-6 lg:p-8 flex flex-col">
             {children}
           </div>
         </main>
       </div>
+
+      {/* Global AI CFO Assistant — floating launcher + chat drawer */}
+      <AiAssistant />
     </div>
   );
 }

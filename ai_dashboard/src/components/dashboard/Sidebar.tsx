@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, TrendingUp, ShoppingCart, PieChart,
+  Home, LayoutDashboard, TrendingUp, ShoppingCart, PieChart,
   Scale, Wallet, Package, ShieldCheck, Activity, Lightbulb,
   FileText, Bell, Settings as SettingsIcon, ChevronLeft,
   UserCog,
@@ -158,6 +158,17 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 
       {/* Navigation groups */}
       <nav className="flex-1 overflow-y-auto scrollbar-thin py-3">
+        {/* Home — AI CFO Home (standalone, above the groups) */}
+        <div className="px-2 mb-1">
+          <NavItem
+            to="/"
+            label="Home"
+            icon={Home}
+            active={pathname === "/"}
+            collapsed={collapsed}
+            index={itemIndex++}
+          />
+        </div>
         {navGroups.map((group) => (
           <div key={group.group} className="mb-1">
             {!collapsed && (

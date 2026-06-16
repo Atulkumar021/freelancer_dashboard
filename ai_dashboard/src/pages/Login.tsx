@@ -1,31 +1,37 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Loader2, Lock, Mail, Shield, ShieldCheck, User } from 'lucide-react';
+import {
+  Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck, User,
+  ArrowRight, RefreshCcw, LineChart, Sun, Moon,
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { BACKEND_URL } from '@/lib/api';
 
 const logo = '/logo.png';
 
-const ROLE_ICONS = {
-  superadmin: Shield,
-  admin:      ShieldCheck,
-  user:       User,
-};
-
-const ROLE_LABELS = {
-  superadmin: 'Super Admin',
-  admin:      'Admin',
-  user:       'User',
-};
-
-const ROLE_DESC = {
-  superadmin: 'Full system access · Manage all companies & users',
-  admin:      'Company admin · Manage company data & team',
-  user:       'Read-only · View company dashboard',
-};
+/* Marketing highlights shown on the brand panel */
+const FEATURES = [
+  {
+    icon: ShieldCheck,
+    title: 'Bank-grade Security',
+    desc:  'Your data is encrypted & secure',
+  },
+  {
+    icon: RefreshCcw,
+    title: 'Auto Synced with Tally',
+    desc:  'Real-time data, always up to date',
+  },
+  {
+    icon: LineChart,
+    title: 'Real-time Financial Insights',
+    desc:  'Understand today, plan for tomorrow',
+  },
+];
 
 export function Login() {
   const { login, user } = useAuth();
+  const { theme, toggle: toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const [email,    setEmail]    = useState('');
@@ -36,6 +42,7 @@ export function Login() {
   const [initMode, setInitMode] = useState(false);
   const [name,     setName]     = useState('');
   const [initDone, setInitDone] = useState(false);
+  const [remember, setRemember] = useState(true);
 
   /* If already logged in → redirect */
   useEffect(() => {
@@ -92,52 +99,118 @@ export function Login() {
     }
   }
 
+  const inputCls =
+    'w-full h-11 pl-10 pr-4 rounded-lg bg-background border border-border text-foreground ' +
+    'placeholder:text-muted-foreground/50 text-sm transition-colors ' +
+    'focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20';
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0d1117] relative overflow-hidden">
+    <div className="relative min-h-screen w-full flex bg-background text-foreground">
 
-      {/* Background grid */}
-      <div className="absolute inset-0 opacity-20"
-        style={{
-          backgroundImage: `linear-gradient(rgba(201,168,76,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.15) 1px, transparent 1px)`,
-          backgroundSize: '60px 60px',
-        }}
-      />
+      {/* Theme toggle — top-right, available before login */}
+      <button
+        onClick={toggleTheme}
+        title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        aria-label="Toggle theme"
+        className="absolute top-5 right-5 z-20 size-9 flex items-center justify-center rounded-lg
+                   border border-border bg-card text-muted-foreground
+                   hover:text-foreground hover:border-accent/40 transition-colors"
+      >
+        {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
+      </button>
 
-      {/* Radial glow */}
-      <div className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 40%, rgba(201,168,76,0.08) 0%, transparent 70%)' }}
-      />
+      {/* ══════════════════════════════════════════════════════════════
+          LEFT — Brand panel (constant deep navy, hidden on small screens)
+          ══════════════════════════════════════════════════════════════ */}
+      <div className="hidden lg:flex lg:w-1/2 xl:w-[55%] relative flex-col justify-between
+                      p-12 xl:p-16 bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
 
-      {/* Card */}
-      <div className="relative w-full max-w-md mx-4">
+        {/* thin accent rule at the very top */}
+        <div className="absolute top-0 left-0 right-0 h-[3px] bg-accent" />
 
-        {/* Logo + brand */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center size-14 rounded-2xl bg-[#c9a84c]/10 border border-[#c9a84c]/20 mb-4 shadow-lg">
-            <img src={logo} alt="Consultara" className="size-9 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display='none'; }} />
+        {/* Brand lockup */}
+        <div className="flex items-center gap-3">
+          <div className="size-12 rounded-lg bg-white p-1.5 ring-1 ring-white/15">
+            <img src={logo} alt="Consultara Global" className="size-full object-contain"
+                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Consultara</h1>
-          <p className="text-sm text-white/40 mt-1">Virtual CFO Dashboard</p>
+          <div>
+            <div className="font-brand text-xl font-semibold leading-none text-white">Consultara Global</div>
+            <div className="text-[11px] tracking-[0.18em] uppercase mt-1.5 text-accent">Finance · Insights · Growth</div>
+          </div>
         </div>
 
-        {/* Login / Init card */}
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl shadow-2xl p-8">
+        {/* Headline + features */}
+        <div>
+          <h1 className="text-4xl xl:text-5xl font-bold leading-[1.1] tracking-tight text-white">
+            Your Business<br />
+            <span className="text-accent">Control Centre</span>
+          </h1>
+          <p className="mt-5 text-base text-sidebar-foreground/60 max-w-md leading-relaxed">
+            Real-time financial insights. Smarter decisions. Stronger growth.
+          </p>
+
+          <div className="mt-10 space-y-3 max-w-md">
+            {FEATURES.map(({ icon: Icon, title, desc }) => (
+              <div
+                key={title}
+                className="group flex items-start gap-4 rounded-xl border border-white/10 bg-white/[0.03]
+                           px-4 py-3.5 transition-colors hover:bg-white/[0.06] hover:border-white/20"
+              >
+                <div className="size-10 shrink-0 rounded-lg bg-accent/15 flex items-center justify-center
+                                transition-colors group-hover:bg-accent/25">
+                  <Icon className="size-5 text-accent" />
+                </div>
+                <div className="pt-0.5">
+                  <p className="text-sm font-semibold text-white">{title}</p>
+                  <p className="text-[13px] text-sidebar-foreground/50 mt-0.5">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <p className="text-xs text-sidebar-foreground/40">
+          © 2024 Consultara Global. All rights reserved. &nbsp;·&nbsp; Secure · Encrypted · Compliant
+        </p>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          RIGHT — Auth form (theme-aware)
+          ══════════════════════════════════════════════════════════════ */}
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
+        <div className="w-full max-w-md animate-fade-in">
+
+          {/* Mobile brand (left panel is hidden) */}
+          <div className="lg:hidden flex items-center justify-center gap-2.5 mb-8">
+            <div className="size-10 rounded-lg bg-sidebar p-1.5 ring-1 ring-border">
+              <img src={logo} alt="Consultara Global" className="size-full object-contain"
+                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            </div>
+            <span className="font-brand text-lg font-semibold">Consultara Global</span>
+          </div>
 
           {initDone ? (
-            <div className="text-center py-4">
-              <ShieldCheck className="size-12 mx-auto text-emerald-400 mb-3" />
-              <h2 className="text-lg font-semibold text-white mb-1">System Initialised</h2>
-              <p className="text-white/50 text-sm mb-4">Superadmin account created. You can now log in.</p>
-              <button onClick={() => setInitDone(false)} className="text-[#c9a84c] text-sm hover:underline">Go to login</button>
+            <div className="rounded-xl border border-border bg-card shadow-sm p-8 text-center">
+              <div className="size-12 mx-auto mb-3 rounded-full bg-success/10 flex items-center justify-center">
+                <ShieldCheck className="size-6 text-success" />
+              </div>
+              <h2 className="text-lg font-semibold mb-1">System Initialised</h2>
+              <p className="text-muted-foreground text-sm mb-4">Superadmin account created. You can now log in.</p>
+              <button onClick={() => setInitDone(false)} className="text-accent text-sm font-medium hover:underline">
+                Go to login
+              </button>
             </div>
           ) : (
-            <>
-              <div className="mb-6">
-                <h2 className="text-lg font-semibold text-white">
-                  {initMode ? 'Initialise System' : 'Sign in to your account'}
+            <div className="rounded-xl border border-border bg-card shadow-sm p-8">
+
+              <div className="mb-7">
+                <h2 className="text-2xl font-bold tracking-tight">
+                  {initMode ? 'Set up your system' : 'Welcome Back'}
                 </h2>
-                <p className="text-white/40 text-sm mt-0.5">
-                  {initMode ? 'Create the first superadmin account' : 'Enter your credentials to continue'}
+                <p className="text-muted-foreground text-sm mt-1.5">
+                  {initMode ? 'Create the first superadmin account' : 'Sign in to access your dashboard'}
                 </p>
               </div>
 
@@ -145,29 +218,29 @@ export function Login() {
 
                 {initMode && (
                   <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-white/40 mb-1.5">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                       Full Name
                     </label>
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-white/30" />
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
                       <input
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="Rahul Sharma"
                         required
-                        className="w-full h-11 pl-10 pr-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-white/25 text-sm focus:outline-none focus:border-[#c9a84c]/50 focus:bg-white/8 transition-all"
+                        className={inputCls}
                       />
                     </div>
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-white/40 mb-1.5">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                     Email Address
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-white/30" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
                     <input
                       type="email"
                       value={email}
@@ -175,91 +248,108 @@ export function Login() {
                       placeholder="you@company.com"
                       required
                       autoFocus
-                      className="w-full h-11 pl-10 pr-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-white/25 text-sm focus:outline-none focus:border-[#c9a84c]/50 focus:bg-white/8 transition-all"
+                      className={inputCls}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-white/40 mb-1.5">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                     Password
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-white/30" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
                     <input
                       type={showPw ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
                       required
-                      className="w-full h-11 pl-10 pr-10 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-white/25 text-sm focus:outline-none focus:border-[#c9a84c]/50 focus:bg-white/8 transition-all"
+                      className={inputCls}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPw((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors"
                     >
                       {showPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                     </button>
                   </div>
                 </div>
 
+                {/* Remember me + forgot password (login mode only) */}
+                {!initMode && (
+                  <div className="flex items-center justify-between pt-0.5">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={remember}
+                        onChange={(e) => setRemember(e.target.checked)}
+                        className="size-4 rounded border-border accent-accent cursor-pointer"
+                      />
+                      <span className="text-[13px] text-muted-foreground">Remember me</span>
+                    </label>
+                    <button
+                      type="button"
+                      className="text-[13px] font-medium text-accent hover:underline transition-colors"
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
+                )}
+
                 {error && (
-                  <div className="flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2.5">
-                    <span className="size-1.5 rounded-full bg-red-400 shrink-0" />
-                    <p className="text-sm text-red-300">{error}</p>
+                  <div className="flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5">
+                    <span className="size-1.5 rounded-full bg-destructive shrink-0" />
+                    <p className="text-sm text-destructive">{error}</p>
                   </div>
                 )}
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full h-11 rounded-xl font-semibold text-sm text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  style={{ background: loading ? '#a6905f' : '#c9a84c' }}
+                  className="w-full h-11 rounded-lg font-semibold text-sm bg-accent text-accent-foreground
+                             transition-all hover:bg-accent/90 active:scale-[0.99]
+                             disabled:opacity-60 disabled:cursor-not-allowed
+                             flex items-center justify-center gap-2"
                 >
                   {loading
                     ? <><Loader2 className="size-4 animate-spin" /> Please wait…</>
-                    : initMode ? 'Create Superadmin' : 'Sign In'
+                    : initMode
+                      ? <>Create Superadmin <ArrowRight className="size-4" /></>
+                      : <>Sign In <ArrowRight className="size-4" /></>
                   }
                 </button>
               </form>
 
-              {!initMode && (
-                <p className="text-center text-xs text-white/25 mt-5">
-                  First time?{' '}
-                  <button onClick={() => { setInitMode(true); setError(''); }} className="text-[#c9a84c]/70 hover:text-[#c9a84c] transition-colors">
-                    Initialise system
+              {/* Footer link */}
+              <div className="mt-6 text-center space-y-2">
+                {!initMode ? (
+                  <>
+                    <p className="text-[13px] text-muted-foreground">
+                      Need help?{' '}
+                      <a href="mailto:support@consultara.global" className="text-accent font-medium hover:underline transition-colors">
+                        Contact support
+                      </a>
+                    </p>
+                    <button onClick={() => { setInitMode(true); setError(''); }} className="text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors">
+                      First-time setup? Initialise system
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={() => { setInitMode(false); setError(''); }} className="text-[13px] font-medium text-accent hover:underline transition-colors">
+                    ← Back to login
                   </button>
-                </p>
-              )}
-              {initMode && (
-                <p className="text-center text-xs text-white/25 mt-5">
-                  <button onClick={() => { setInitMode(false); setError(''); }} className="text-[#c9a84c]/70 hover:text-[#c9a84c] transition-colors">
-                    Back to login
-                  </button>
-                </p>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Role legend */}
-        <div className="mt-6 grid grid-cols-3 gap-3">
-          {(['superadmin', 'admin', 'user'] as const).map((role) => {
-            const Icon = ROLE_ICONS[role];
-            return (
-              <div key={role} className="rounded-xl border border-white/8 bg-white/[0.02] p-3 text-center">
-                <Icon className="size-5 mx-auto mb-1.5 text-[#c9a84c]/60" />
-                <p className="text-[11px] font-semibold text-white/60">{ROLE_LABELS[role]}</p>
-                <p className="text-[9px] text-white/25 mt-0.5 leading-tight">{ROLE_DESC[role].split(' · ')[0]}</p>
+                )}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          )}
 
-        <p className="text-center text-[11px] text-white/20 mt-6">
-          © 2024 Consultara Global · Secure · Encrypted
-        </p>
+          {/* Mobile footer */}
+          <p className="lg:hidden text-center text-[11px] text-muted-foreground/60 mt-6">
+            © 2024 Consultara Global · Secure · Encrypted · Compliant
+          </p>
+        </div>
       </div>
     </div>
   );

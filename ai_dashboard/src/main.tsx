@@ -5,11 +5,13 @@ import "./styles.css";
 
 import { AuthProvider }          from "@/contexts/AuthContext";
 import { FilterProvider }        from "@/contexts/FilterContext";
+import { ThemeProvider }         from "@/contexts/ThemeContext";
 import { ProtectedRoute }        from "@/components/ProtectedRoute";
 import { Login }                 from "@/pages/Login";
 import { Users }                 from "@/pages/Users";
 import { DashboardLayout }       from "@/components/dashboard/DashboardLayout";
 import { FiltersPanel }          from "@/components/dashboard/FiltersPanel";
+import { AiCfoHome }             from "@/components/dashboard/pages/AiCfoHome";
 import { ExecutiveOverview }     from "@/components/dashboard/pages/ExecutiveOverview";
 import { SalesReceivables }      from "@/components/dashboard/pages/SalesReceivables";
 import { PurchasesPayables }     from "@/components/dashboard/pages/PurchasesPayables";
@@ -27,7 +29,8 @@ import { Settings }              from "@/components/dashboard/pages/Settings";
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <AuthProvider>
+      <ThemeProvider>
+       <AuthProvider>
         <FilterProvider>
           <Routes>
 
@@ -41,7 +44,8 @@ createRoot(document.getElementById("root")!).render(
                 <FiltersPanel />
                 <DashboardLayout>
                   <Routes>
-                    <Route path="/"              element={<Navigate to="/executive" replace />} />
+                    <Route path="/"              element={<AiCfoHome />} />
+                    <Route path="/home"          element={<Navigate to="/" replace />} />
                     <Route path="/executive"     element={<ExecutiveOverview />} />
                     <Route path="/sales"         element={<SalesReceivables />} />
                     <Route path="/purchases"     element={<PurchasesPayables />} />
@@ -71,7 +75,8 @@ createRoot(document.getElementById("root")!).render(
 
           </Routes>
         </FilterProvider>
-      </AuthProvider>
+       </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   </StrictMode>,
 );

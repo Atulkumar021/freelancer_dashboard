@@ -1,49 +1,42 @@
 import { useState } from "react";
 import {
-  AlertTriangle, Bell, CheckCircle2, Clock, Download,
+  AlertTriangle, AlertCircle, Bell, CheckCircle2, Clock, Download,
   Info, ShieldCheck, User, X,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Panel, PageHeader, SectionTitle, Badge } from "../Primitives";
-import { StatCard } from "../StatCard";
+import { Panel, SectionTitle, Badge } from "../Primitives";
 import { BarsCompare, DonutChart } from "../Charts";
 import { exportToCSV } from "@/lib/exportUtils";
+import { AnimatedValue } from "../Animated";
 
 /* ── Data ─────────────────────────────────────────────────────────────────── */
 type Sev = "high" | "med" | "low";
 type Status = "open" | "in-progress" | "resolved";
 
 interface ActionItem {
-  id: string;
-  category: string;
-  sev: Sev;
-  text: string;
-  meta: string;
-  owner: string;
-  dueDate: string;
-  status: Status;
+  id: string; category: string; sev: Sev; text: string; meta: string;
+  owner: string; dueDate: string; status: Status;
 }
 
 const allItems: ActionItem[] = [
-  { id: 'a1',  category: 'Financial',    sev: 'high', text: 'Cash balance projected below ₹3 Cr threshold by Jan 28',       meta: 'Forecast',    owner: 'CFO',            dueDate: '28 Jan', status: 'open' },
-  { id: 'a2',  category: 'Financial',    sev: 'med',  text: 'Marketing expense above budget by 18.4%',                       meta: 'Variance',    owner: 'Head Finance',   dueDate: '31 Oct', status: 'in-progress' },
-  { id: 'a3',  category: 'Financial',    sev: 'med',  text: 'Revenue 4.2% below budget for September',                       meta: 'Budget',      owner: 'Sales Head',     dueDate: '05 Nov', status: 'open' },
-  { id: 'a4',  category: 'Receivables',  sev: 'high', text: '₹38.4 L receivable overdue beyond 90 days (12 customers)',      meta: 'Ageing',      owner: 'Collections',    dueDate: '20 Oct', status: 'open' },
-  { id: 'a5',  category: 'Receivables',  sev: 'high', text: 'Customer concentration: top 5 = 47% of revenue',               meta: 'Risk',        owner: 'CFO',            dueDate: '30 Nov', status: 'open' },
-  { id: 'a6',  category: 'Receivables',  sev: 'med',  text: 'Vendor payments of ₹64.2 L due in next 15 days',               meta: 'Payables',    owner: 'AP Team',        dueDate: '01 Nov', status: 'in-progress' },
-  { id: 'a7',  category: 'Compliance',   sev: 'high', text: 'GSTR-3B filing due in 4 days',                                  meta: '20 Oct',      owner: 'Tax Manager',    dueDate: '20 Oct', status: 'open' },
-  { id: 'a8',  category: 'Compliance',   sev: 'med',  text: 'PF/ESI payment due in 11 days',                                 meta: '15 Nov',      owner: 'HR / Finance',   dueDate: '15 Nov', status: 'open' },
-  { id: 'a9',  category: 'Compliance',   sev: 'low',  text: 'Advance Tax Q3 due in 56 days',                                 meta: '15 Dec',      owner: 'Tax Manager',    dueDate: '15 Dec', status: 'open' },
-  { id: 'a10', category: 'Operational',  sev: 'med',  text: '3 bank reconciliations pending — HDFC Current',                 meta: '₹4.8 L',      owner: 'Accounts',       dueDate: '31 Oct', status: 'in-progress' },
-  { id: 'a11', category: 'Operational',  sev: 'low',  text: 'Suspense ledger balance ₹1.2 L unmapped',                       meta: 'Review',      owner: 'Accounts',       dueDate: '31 Oct', status: 'open' },
-  { id: 'a12', category: 'Financial',    sev: 'low',  text: 'FD of ₹80 L maturing in 15 days — renewal decision needed',    meta: 'Banking',     owner: 'CFO',            dueDate: '14 Nov', status: 'resolved' },
+  { id: 'a1',  category: 'Financial',   sev: 'high', text: 'Cash balance projected below ₹3 Cr threshold by Jan 28',    meta: 'Forecast', owner: 'CFO',          dueDate: '28 Jan', status: 'open' },
+  { id: 'a2',  category: 'Financial',   sev: 'med',  text: 'Marketing expense above budget by 18.4%',                   meta: 'Variance', owner: 'Head Finance', dueDate: '31 Oct', status: 'in-progress' },
+  { id: 'a3',  category: 'Financial',   sev: 'med',  text: 'Revenue 4.2% below budget for September',                   meta: 'Budget',   owner: 'Sales Head',   dueDate: '05 Nov', status: 'open' },
+  { id: 'a4',  category: 'Receivables', sev: 'high', text: '₹38.4 L receivable overdue beyond 90 days (12 customers)',  meta: 'Ageing',   owner: 'Collections',  dueDate: '20 Oct', status: 'open' },
+  { id: 'a5',  category: 'Receivables', sev: 'high', text: 'Customer concentration: top 5 = 47% of revenue',           meta: 'Risk',     owner: 'CFO',          dueDate: '30 Nov', status: 'open' },
+  { id: 'a6',  category: 'Receivables', sev: 'med',  text: 'Vendor payments of ₹64.2 L due in next 15 days',           meta: 'Payables', owner: 'AP Team',      dueDate: '01 Nov', status: 'in-progress' },
+  { id: 'a7',  category: 'Compliance',  sev: 'high', text: 'GSTR-3B filing due in 4 days',                              meta: '20 Oct',   owner: 'Tax Manager',  dueDate: '20 Oct', status: 'open' },
+  { id: 'a8',  category: 'Compliance',  sev: 'med',  text: 'PF/ESI payment due in 11 days',                             meta: '15 Nov',   owner: 'HR / Finance', dueDate: '15 Nov', status: 'open' },
+  { id: 'a9',  category: 'Compliance',  sev: 'low',  text: 'Advance Tax Q3 due in 56 days',                             meta: '15 Dec',   owner: 'Tax Manager',  dueDate: '15 Dec', status: 'open' },
+  { id: 'a10', category: 'Operational', sev: 'med',  text: '3 bank reconciliations pending — HDFC Current',            meta: '₹4.8 L',   owner: 'Accounts',     dueDate: '31 Oct', status: 'in-progress' },
+  { id: 'a11', category: 'Operational', sev: 'low',  text: 'Suspense ledger balance ₹1.2 L unmapped',                  meta: 'Review',   owner: 'Accounts',     dueDate: '31 Oct', status: 'open' },
+  { id: 'a12', category: 'Financial',   sev: 'low',  text: 'FD of ₹80 L maturing in 15 days — renewal decision needed', meta: 'Banking', owner: 'CFO',          dueDate: '14 Nov', status: 'resolved' },
 ];
 
 const months = ['May','Jun','Jul','Aug','Sep','Oct'];
 const alertTrendData = months.map((m, i) => ({
-  name: m,
-  High: 3 + (i === 4 ? 1 : 0),
-  Medium: 4 + (i % 3 === 0 ? 1 : 0),
+  name: m, High: 3 + (i === 4 ? 1 : 0), Medium: 4 + (i % 3 === 0 ? 1 : 0),
 }));
 
 const categoryMix = [
@@ -54,23 +47,52 @@ const categoryMix = [
 ];
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
-const sevColor = (s: Sev) =>
-  s === "high" ? "danger" : s === "med" ? "warning" : "default";
+const sevColor = (s: Sev) => s === "high" ? "danger" : s === "med" ? "warning" : "default";
+
+const sevTile = (s: Sev) =>
+  s === 'high' ? 'bg-red-500/10 text-red-500' :
+  s === 'med'  ? 'bg-amber-500/10 text-amber-600' :
+  'bg-secondary text-muted-foreground';
 
 const statusStyle = (s: Status) =>
-  s === 'resolved'    ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-  s === 'in-progress' ? 'bg-blue-50 text-blue-700 border-blue-100' :
-  'bg-secondary text-muted-foreground border-border';
+  s === 'resolved'    ? 'bg-emerald-500/10 text-emerald-600' :
+  s === 'in-progress' ? 'bg-blue-500/10 text-blue-600' :
+  'bg-secondary text-muted-foreground';
 
-const statusLabel = (s: Status) =>
-  s === 'resolved' ? 'Resolved' : s === 'in-progress' ? 'In Progress' : 'Open';
+const statusLabel = (s: Status) => s === 'resolved' ? 'Resolved' : s === 'in-progress' ? 'In Progress' : 'Open';
 
 const groups = [
-  { key: 'Financial',   title: 'Financial Alerts',     icon: AlertTriangle },
-  { key: 'Receivables', title: 'Receivable & Payable',  icon: Clock },
-  { key: 'Compliance',  title: 'Compliance',            icon: ShieldCheck },
-  { key: 'Operational', title: 'Operational',           icon: Info },
+  { key: 'Financial',   title: 'Financial Alerts',    icon: AlertTriangle },
+  { key: 'Receivables', title: 'Receivable & Payable', icon: Clock },
+  { key: 'Compliance',  title: 'Compliance',           icon: ShieldCheck },
+  { key: 'Operational', title: 'Operational',          icon: Info },
 ];
+
+/* ── KPI tile ───────────────────────────────────────────────────────────── */
+function KpiTile({ label, value, icon: Icon, delta, good, hint }: {
+  label: string; value: string; icon: React.ElementType; delta: number; good: boolean; hint?: string;
+}) {
+  const up = delta >= 0;
+  return (
+    <div className="rounded-xl border border-border bg-card p-5 shadow-sm transition-all hover:border-accent/40 hover:shadow-md">
+      <div className="flex items-center justify-between">
+        <span className="size-9 rounded-lg bg-accent/10 flex items-center justify-center">
+          <Icon className="size-[18px] text-accent" />
+        </span>
+        {delta !== 0 && (
+          <span className={cn("text-xs font-semibold tabular-nums", good ? "text-emerald-600" : "text-red-500")}>
+            {up ? "+" : ""}{delta}%
+          </span>
+        )}
+      </div>
+      <p className="mt-4 text-sm text-muted-foreground">{label}</p>
+      <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-foreground leading-none">
+        <AnimatedValue value={value} />
+      </p>
+      {hint && <p className="mt-2 text-[11px] text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
 
 /* ── Component ────────────────────────────────────────────────────────────── */
 export function Alerts() {
@@ -86,8 +108,7 @@ export function Alerts() {
     });
 
   const liveItems = allItems.map(i => ({
-    ...i,
-    status: resolvedIds.has(i.id) ? 'resolved' as Status : i.status,
+    ...i, status: resolvedIds.has(i.id) ? 'resolved' as Status : i.status,
   }));
 
   const openCount   = liveItems.filter(i => i.status === 'open').length;
@@ -95,60 +116,56 @@ export function Alerts() {
   const medCount    = liveItems.filter(i => i.sev === 'med'  && i.status !== 'resolved').length;
   const resolvedCnt = liveItems.filter(i => i.status === 'resolved').length;
 
-  const filtered = statusFilter === 'all'
-    ? liveItems
-    : liveItems.filter(i => i.status === statusFilter);
+  const filtered = statusFilter === 'all' ? liveItems : liveItems.filter(i => i.status === statusFilter);
 
-  const handleExport = () => {
-    exportToCSV(
-      ['ID','Category','Severity','Alert','Due Date','Owner','Status'],
-      liveItems.map(i => [i.id, i.category, i.sev, i.text, i.dueDate, i.owner, i.status]),
-      'alerts-tracker.csv',
-    );
-  };
+  const handleExport = () => exportToCSV(
+    ['ID','Category','Severity','Alert','Due Date','Owner','Status'],
+    liveItems.map(i => [i.id, i.category, i.sev, i.text, i.dueDate, i.owner, i.status]),
+    'alerts-tracker.csv',
+  );
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Alerts & Action Tracker"
-        eyebrow="Action Centre"
-        subtitle="All items requiring attention across the business — assign owners and track resolution."
-        actions={
-          <>
-            <Button variant="outline" className="h-9 gap-1.5 hidden sm:inline-flex" onClick={handleExport}>
-              <Download className="size-4" /> Export CSV
-            </Button>
-            <div className="flex gap-1 p-1 rounded-lg bg-secondary border border-border">
-              {(['overview','tracker'] as const).map(t => (
-                <button
-                  key={t}
-                  onClick={() => setActiveTab(t)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors capitalize ${
-                    activeTab === t ? 'bg-card shadow text-foreground' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {t === 'overview' ? 'Overview' : 'Action Tracker'}
-                </button>
-              ))}
-            </div>
-          </>
-        }
-      />
 
-      {/* KPI Cards */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        <StatCard label="Open Alerts"      value={String(openCount)}   previous="14 last month" deltaPct={-14.3} invertGood />
-        <StatCard label="High Severity"    value={String(highCount)}   previous="4 last month"  deltaPct={0}     invertGood highlight />
-        <StatCard label="Medium Severity"  value={String(medCount)}    previous="5 last month"  deltaPct={-20}   invertGood />
-        <StatCard label="Resolved MTD"     value={String(resolvedCnt)} previous="6 last month"  deltaPct={-33.3} />
-      </section>
+      {/* ── Header ───────────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Alerts &amp; Action Tracker</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Items needing attention — assign owners and track resolution</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="h-9 gap-1.5" onClick={handleExport}>
+            <Download className="size-4" /> Export
+          </Button>
+          <div className="flex gap-1 p-1 rounded-lg bg-secondary border border-border">
+            {(['overview','tracker'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setActiveTab(t)}
+                className={cn("px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                  activeTab === t ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground')}
+              >
+                {t === 'overview' ? 'Overview' : 'Action Tracker'}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── KPI row ──────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiTile label="Open Alerts"     value={String(openCount)}   icon={Bell}          delta={-14.3} good      hint="14 last month" />
+        <KpiTile label="High Severity"   value={String(highCount)}   icon={AlertTriangle} delta={0}     good={false} hint="Needs action now" />
+        <KpiTile label="Medium Severity" value={String(medCount)}    icon={AlertCircle}   delta={-20}   good      hint="5 last month" />
+        <KpiTile label="Resolved (MTD)"  value={String(resolvedCnt)} icon={CheckCircle2}  delta={0}     good      hint="Closed this month" />
+      </div>
 
       {activeTab === 'overview' ? (
         <>
           {/* Charts */}
-          <section className="grid lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid lg:grid-cols-3 gap-5">
             <Panel className="lg:col-span-2">
-              <SectionTitle title="Alert Trend" subtitle="High and medium severity alerts — last 6 months" />
+              <SectionTitle title="Alert Trend" subtitle="High and medium severity — last 6 months" />
               <BarsCompare
                 data={alertTrendData}
                 series={[
@@ -164,58 +181,43 @@ export function Alerts() {
               <div className="mt-3 space-y-1.5">
                 {categoryMix.map(c => (
                   <div key={c.name} className="flex items-center justify-between text-xs">
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-2 text-muted-foreground">
                       <span className="size-2.5 rounded-sm shrink-0" style={{ background: c.color }} />
                       {c.name}
                     </span>
-                    <span className="font-semibold tabular-nums">{c.value}%</span>
+                    <span className="font-semibold tabular-nums text-foreground">{c.value}%</span>
                   </div>
                 ))}
               </div>
             </Panel>
-          </section>
+          </div>
 
           {/* Alert cards by category */}
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-2 gap-5">
             {groups.map((g) => {
               const items = liveItems.filter(i => i.category === g.key && i.status !== 'resolved');
               return (
                 <Panel key={g.key}>
-                  <SectionTitle
-                    title={g.title}
-                    action={
-                      <span className="text-xs text-muted-foreground">
-                        {items.length} open
-                      </span>
-                    }
-                  />
+                  <SectionTitle title={g.title} action={<span className="text-xs text-muted-foreground">{items.length} open</span>} />
                   <ul className="space-y-2.5">
                     {items.map((it) => (
-                      <li key={it.id} className="rounded-lg border border-border/70 bg-secondary/40 p-3 flex gap-3">
-                        <div className={`mt-0.5 size-7 rounded-md flex items-center justify-center shrink-0 ${
-                          it.sev === 'high' ? 'bg-destructive/10 text-destructive' :
-                          it.sev === 'med'  ? 'bg-warning/15 text-warning-foreground' :
-                          'bg-gold/15 text-foreground'
-                        }`}>
+                      <li key={it.id} className="rounded-lg border border-border p-3 flex gap-3">
+                        <div className={cn("mt-0.5 size-7 rounded-lg flex items-center justify-center shrink-0", sevTile(it.sev))}>
                           <g.icon className="size-4" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm">{it.text}</div>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <span className="text-[11px] text-muted-foreground">{it.meta}</span>
-                            <span className="text-[10px] text-muted-foreground">·</span>
-                            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                              <User className="size-3" /> {it.owner}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">·</span>
-                            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                              <Clock className="size-3" /> {it.dueDate}
-                            </span>
+                          <div className="text-sm text-foreground">{it.text}</div>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap text-[11px] text-muted-foreground">
+                            <span>{it.meta}</span>
+                            <span>·</span>
+                            <span className="flex items-center gap-1"><User className="size-3" /> {it.owner}</span>
+                            <span>·</span>
+                            <span className="flex items-center gap-1"><Clock className="size-3" /> {it.dueDate}</span>
                           </div>
                         </div>
                         <button
                           onClick={() => toggleResolved(it.id)}
-                          className="shrink-0 size-6 flex items-center justify-center rounded-md hover:bg-emerald-50 hover:text-emerald-700 transition-colors text-muted-foreground"
+                          className="shrink-0 size-6 flex items-center justify-center rounded-md text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-600 transition-colors"
                           title="Mark resolved"
                         >
                           <CheckCircle2 className="size-4" />
@@ -236,18 +238,15 @@ export function Alerts() {
         <Panel>
           <SectionTitle
             title="Action Tracker"
-            subtitle="All open and in-progress action items with owners and due dates"
+            subtitle="All action items with owners and due dates"
             action={
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 {(['all','open','in-progress','resolved'] as const).map(f => (
                   <button
                     key={f}
                     onClick={() => setStatusFilter(f)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors capitalize ${
-                      statusFilter === f
-                        ? 'bg-gradient-gold text-black'
-                        : 'bg-secondary text-muted-foreground hover:text-foreground'
-                    }`}
+                    className={cn("px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors",
+                      statusFilter === f ? 'bg-accent text-accent-foreground' : 'bg-secondary text-muted-foreground hover:text-foreground')}
                   >
                     {f === 'all' ? `All (${liveItems.length})` : statusLabel(f as Status)}
                   </button>
@@ -258,53 +257,41 @@ export function Alerts() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border">
-                  {['Severity','Alert','Category','Owner','Due Date','Status','Action'].map(h => (
-                    <th key={h} className="pb-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground pr-4 last:pr-0">{h}</th>
-                  ))}
+                <tr className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">
+                  <th className="text-left font-semibold py-2.5 pr-2">Severity</th>
+                  <th className="text-left font-semibold py-2.5 px-2">Alert</th>
+                  <th className="text-left font-semibold py-2.5 px-2 hidden md:table-cell">Owner</th>
+                  <th className="text-left font-semibold py-2.5 px-2 hidden sm:table-cell">Due</th>
+                  <th className="text-center font-semibold py-2.5 px-2">Status</th>
+                  <th className="text-right font-semibold py-2.5 pl-2">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map(item => (
-                  <tr key={item.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
-                    <td className="py-3 pr-4">
-                      <Badge variant={sevColor(item.sev)}>
-                        {item.sev === 'high' ? 'High' : item.sev === 'med' ? 'Medium' : 'Low'}
-                      </Badge>
+                  <tr key={item.id} className="border-b border-border/60 last:border-0 hover:bg-secondary/50 transition-colors">
+                    <td className="py-3 pr-2">
+                      <Badge variant={sevColor(item.sev)}>{item.sev === 'high' ? 'High' : item.sev === 'med' ? 'Medium' : 'Low'}</Badge>
                     </td>
-                    <td className="py-3 pr-4 max-w-[280px]">
-                      <p className="text-sm leading-snug">{item.text}</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">{item.meta}</p>
+                    <td className="py-3 px-2 max-w-[280px]">
+                      <p className="text-sm leading-snug text-foreground">{item.text}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">{item.meta} · {item.category}</p>
                     </td>
-                    <td className="py-3 pr-4 text-muted-foreground text-xs">{item.category}</td>
-                    <td className="py-3 pr-4">
-                      <span className="flex items-center gap-1.5 text-xs">
-                        <User className="size-3 text-muted-foreground" /> {item.owner}
-                      </span>
+                    <td className="py-3 px-2 hidden md:table-cell">
+                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><User className="size-3" /> {item.owner}</span>
                     </td>
-                    <td className="py-3 pr-4 text-xs tabular-nums">
-                      <span className="flex items-center gap-1.5">
-                        <Clock className="size-3 text-muted-foreground" /> {item.dueDate}
-                      </span>
-                    </td>
-                    <td className="py-3 pr-4">
-                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border leading-none ${statusStyle(item.status)}`}>
+                    <td className="py-3 px-2 text-xs tabular-nums text-muted-foreground hidden sm:table-cell">{item.dueDate}</td>
+                    <td className="py-3 px-2 text-center">
+                      <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap", statusStyle(item.status))}>
                         {statusLabel(item.status)}
                       </span>
                     </td>
-                    <td className="py-3">
+                    <td className="py-3 pl-2 text-right">
                       {item.status !== 'resolved' ? (
-                        <button
-                          onClick={() => toggleResolved(item.id)}
-                          className="flex items-center gap-1 text-[11px] text-emerald-700 hover:opacity-80 transition-opacity"
-                        >
+                        <button onClick={() => toggleResolved(item.id)} className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 hover:underline">
                           <CheckCircle2 className="size-3.5" /> Resolve
                         </button>
                       ) : (
-                        <button
-                          onClick={() => toggleResolved(item.id)}
-                          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:opacity-80 transition-opacity"
-                        >
+                        <button onClick={() => toggleResolved(item.id)} className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:underline">
                           <X className="size-3.5" /> Reopen
                         </button>
                       )}

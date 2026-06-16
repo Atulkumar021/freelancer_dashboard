@@ -22,15 +22,18 @@ import {
   YAxis,
 } from "recharts";
 
-const axisStyle = { fontSize: 11, fill: "#9ca3af", fontFamily: "Inter, system-ui, sans-serif" };
+const axisStyle = { fontSize: 11, fill: "var(--muted-foreground)", fontFamily: "Inter, system-ui, sans-serif" };
+
+const GRID = "var(--border)";
 
 const tooltipStyle = {
-  background: "rgba(255,255,255,0.98)",
-  border: "1px solid #e5e7eb",
+  background: "var(--popover)",
+  border: "1px solid var(--border)",
+  color: "var(--popover-foreground)",
   borderRadius: 10,
   fontSize: 12,
   fontFamily: "Inter, system-ui, sans-serif",
-  boxShadow: "0 8px 28px -6px rgba(0,0,0,0.14)",
+  boxShadow: "0 8px 28px -6px rgba(0,0,0,0.25)",
   padding: "10px 14px",
 };
 
@@ -80,7 +83,7 @@ export function TrendArea({
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
         <GoldGradientDef id="trendArea" />
-        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
         <XAxis dataKey="name" tick={axisStyle} axisLine={false} tickLine={false} />
         <YAxis tick={axisStyle} axisLine={false} tickLine={false} tickFormatter={numberFmt} />
         <Tooltip contentStyle={tooltipStyle} formatter={numberFmt} />
@@ -110,7 +113,7 @@ export function MultiLine({
     <div>
       <ResponsiveContainer width="100%" height={height}>
         <LineChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
           <XAxis dataKey="name" tick={axisStyle} axisLine={false} tickLine={false} />
           <YAxis tick={axisStyle} axisLine={false} tickLine={false} tickFormatter={numberFmt} />
           <Tooltip contentStyle={tooltipStyle} formatter={numberFmt} />
@@ -146,7 +149,7 @@ export function BarsCompare({
     <div>
       <ResponsiveContainer width="100%" height={height}>
         <BarChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
           <XAxis dataKey="name" tick={axisStyle} axisLine={false} tickLine={false} />
           <YAxis tick={axisStyle} axisLine={false} tickLine={false} tickFormatter={numberFmt} />
           <Tooltip contentStyle={tooltipStyle} formatter={numberFmt} cursor={{ fill: "rgba(243,244,246,0.6)" }} />

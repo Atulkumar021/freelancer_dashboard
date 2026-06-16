@@ -2,6 +2,8 @@ import { useNavigate } from "react-router-dom";
 import {
   Bell, Download, HelpCircle, Menu, RefreshCw,
   Search, ChevronDown, Database, LogOut, Users, SlidersHorizontal,
+  Sun, Moon, FileText, FileSpreadsheet, FileBarChart2, ScrollText,
+  Clock, TrendingUp, ShieldCheck, Printer,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -12,22 +14,40 @@ import { cn } from "@/lib/utils";
 import { useConnectionStatus, ConnLevel } from "@/hooks/useConnectionStatus";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFilters } from "@/contexts/FilterContext";
-import { printCurrentPage } from "@/lib/exportUtils";
+import { useTheme } from "@/contexts/ThemeContext";
+import { printCurrentPage, downloadMockReport } from "@/lib/exportUtils";
+
+const EXPORT_ITEMS = [
+  { label: "Export as PDF",        icon: FileText,        fn: () => downloadMockReport("Consultara Dashboard", "pdf") },
+  { label: "Export as Excel",      icon: FileSpreadsheet, fn: () => downloadMockReport("Consultara Dashboard", "xls") },
+  { label: "Download MIS Pack",    icon: FileBarChart2,   fn: () => downloadMockReport("MIS Pack", "pdf") },
+  { label: "Ledger Extract",       icon: ScrollText,      fn: () => downloadMockReport("Ledger Extract", "xls") },
+  { label: "Ageing Report",        icon: Clock,           fn: () => downloadMockReport("Ageing Report", "xls") },
+  { label: "Variance Report",      icon: TrendingUp,      fn: () => downloadMockReport("Variance Report", "pdf") },
+  { label: "Financial Statements", icon: FileText,        fn: () => downloadMockReport("Financial Statements", "pdf") },
+  { label: "Compliance Summary",   icon: ShieldCheck,     fn: () => downloadMockReport("Compliance Summary", "pdf") },
+];
 const logo = "/logo.png";
 
 export function TopBar({ onMenu }: { onMenu?: () => void }) {
   const navigate     = useNavigate();
   const { user, logout, isRole } = useAuth();
   const { setPanelOpen, activeFilterCount, filters, setFilter } = useFilters();
+  const { theme, toggle: toggleTheme } = useTheme();
   const [searchOpen,   setSearchOpen]   = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [exportOpen,   setExportOpen]   = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
   const conn = useConnectionStatus();
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setUserMenuOpen(false);
+      }
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setExportOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClick);
@@ -43,7 +63,7 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
       {/* Gold accent line */}
       <div className="h-[2px] w-full bg-gradient-gold opacity-70" />
 
-      <div className="flex items-center gap-3 px-4 sm:px-6 h-[60px] w-full">
+      <div className="flex items-center gap-2 px-3 sm:px-4 h-[60px] w-full min-w-0">
 
         {/* ── Mobile: hamburger + brand ─────────────────────────────────── */}
         <button
@@ -61,7 +81,7 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
         </div>
 
         {/* ── Period + org filters ─────────────────────────────────────── */}
-        <div className="hidden xl:flex items-center gap-1.5 ml-1">
+        <div className="hidden 2xl:flex items-center gap-1.5 ml-1 shrink-0">
           <Select value={filters.fy} onValueChange={v => setFilter('fy', v)}>
             <SelectTrigger className="h-8 w-[108px] text-xs border-border bg-background gap-1 pr-2">
               <SelectValue />
@@ -112,8 +132,8 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
           </Select>
         </div>
 
-        {/* Tablet: just month + branch */}
-        <div className="hidden md:flex xl:hidden items-center gap-1.5 ml-1">
+        {/* Tablet / mid widths: just month + branch */}
+        <div className="hidden lg:flex 2xl:hidden items-center gap-1.5 ml-1 shrink-0">
           <Select value={filters.month} onValueChange={v => setFilter('month', v)}>
             <SelectTrigger className="h-8 w-[108px] text-xs border-border bg-background">
               <SelectValue />
@@ -165,6 +185,18 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
         </button>
 
         {/* ── Action icons ─────────────────────────────────────────────── */}
+        {/* Dark / light theme toggle */}
+        <button
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-label="Toggle theme"
+          className="relative size-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0"
+        >
+          {theme === 'dark'
+            ? <Sun className="size-4" />
+            : <Moon className="size-4" />}
+        </button>
+
         <button
           onClick={conn.refresh}
           title="Refresh connection status"
@@ -195,15 +227,45 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
           <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-destructive" />
         </button>
 
-        {/* Export / Print button */}
-        <Button
-          size="sm"
-          onClick={printCurrentPage}
-          className="hidden sm:inline-flex h-8 bg-gradient-gold text-black hover:opacity-90 shadow-gold text-xs font-medium shrink-0 gap-1.5"
-        >
-          <Download className="size-3.5" />
-          <span className="hidden md:inline">Export</span>
-        </Button>
+        {/* Export dropdown */}
+        <div className="relative shrink-0" ref={exportRef}>
+          <Button
+            size="sm"
+            onClick={() => setExportOpen((v) => !v)}
+            className="hidden sm:inline-flex h-8 bg-accent text-accent-foreground hover:bg-accent/90 text-xs font-semibold gap-1.5"
+          >
+            <Download className="size-3.5" />
+            <span className="hidden md:inline">Export</span>
+            <ChevronDown className={cn("size-3.5 hidden md:inline transition-transform", exportOpen && "rotate-180")} />
+          </Button>
+
+          {exportOpen && (
+            <div className="absolute right-0 top-10 w-56 rounded-xl border border-border bg-card shadow-xl z-50 overflow-hidden py-1">
+              <p className="px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Export &amp; Download
+              </p>
+              {EXPORT_ITEMS.map((it) => {
+                const Icon = it.icon;
+                return (
+                  <button
+                    key={it.label}
+                    onClick={() => { it.fn(); setExportOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm hover:bg-secondary transition-colors text-left"
+                  >
+                    <Icon className="size-4 text-muted-foreground shrink-0" /> {it.label}
+                  </button>
+                );
+              })}
+              <div className="my-1 border-t border-border" />
+              <button
+                onClick={() => { printCurrentPage(); setExportOpen(false); }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm hover:bg-secondary transition-colors text-left"
+              >
+                <Printer className="size-4 text-muted-foreground shrink-0" /> Print
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* ── User avatar + dropdown ───────────────────────────────────── */}
         <div className="relative pl-2 ml-1 border-l border-border shrink-0" ref={menuRef}>
@@ -292,7 +354,7 @@ function ConnectionStatus({ conn }: { conn: ReturnType<typeof import("@/hooks/us
 
   return (
     <div
-      className="hidden lg:flex items-center gap-2 shrink-0 px-2.5 py-1.5 rounded-lg bg-secondary/60 border border-border"
+      className="hidden xl:flex items-center gap-2 shrink-0 px-2.5 py-1.5 rounded-lg bg-secondary/60 border border-border"
       title={`Backend: ${label(conn.backend)} · Tally: ${label(conn.tally)}${conn.lastSync ? ` · synced ${conn.lastSync}` : ''}`}
     >
       {/* Backend — dot + icon, label only on very wide screens */}
