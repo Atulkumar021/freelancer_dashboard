@@ -4,7 +4,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Panel, SectionTitle } from "../Primitives";
+import { PageHeader, Panel, SectionTitle } from "../Primitives";
 import { BarsCompare, TrendArea } from "../Charts";
 import { api, fmt, monthName, toLakhs } from "@/lib/api";
 import { exportToCSV } from "@/lib/exportUtils";
@@ -16,20 +16,34 @@ function utilColor(pct: number) {
   return "bg-emerald-500";
 }
 
+function fmtDate(iso: string | null | undefined): string {
+  if (!iso) return "";
+  try { return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" }); }
+  catch { return ""; }
+}
+
 /* ── KPI tile ───────────────────────────────────────────────────────────── */
 function KpiTile({ label, value, icon: Icon, hint, tone }: {
   label: string; value: string; icon: React.ElementType; hint?: string; tone?: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-5 shadow-sm transition-all hover:border-accent/40 hover:shadow-md">
-      <span className="size-9 rounded-lg bg-accent/10 flex items-center justify-center">
-        <Icon className="size-[18px] text-accent" />
-      </span>
-      <p className="mt-4 text-sm text-muted-foreground">{label}</p>
-      <p className={cn("mt-1 text-2xl font-bold tabular-nums tracking-tight leading-none", tone ?? "text-foreground")}>
-        <AnimatedValue value={value} />
-      </p>
-      {hint && <p className="mt-2 text-[11px] text-muted-foreground">{hint}</p>}
+    <div className="rounded-lg border border-border bg-card p-3.5 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground leading-snug">{label}</p>
+          <p className={cn("mt-2 text-[22px] font-semibold tabular-nums tracking-tight leading-none", tone ?? "text-foreground")}>
+            <AnimatedValue value={value} />
+          </p>
+        </div>
+        <span className="size-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+          <Icon className="size-4 text-accent" />
+        </span>
+      </div>
+      {hint && (
+        <div className="mt-3 border-t border-border/60 pt-2.5">
+          <p className="text-[11px] text-muted-foreground leading-snug">{hint}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -76,13 +90,28 @@ export function CashFlow() {
   const cashLedgers:  any[]  = data?.cashBankLedgers ?? [];
 
   const handleExportCSV = () => {
-    exportToCSV(
-      ['Bank','Account','Type','Book Balance','Statement Balance','Difference'],
-      bankAccounts.map((b: any) => [
-        b.bankName, b.accountNumber ?? '', b.accountType,
-        b.bookBalance ?? 0, b.statementBalance ?? '', b.differenceAmt ?? 0,
+    const rows: (string | number)[][] = [
+      ["KPI", "Closing Cash", s.totalCash ?? 0, "", "", "Cash & bank on hand"],
+      ["KPI", "Total Receipts YTD", s.totalReceipts ?? 0, "", "", "Money in"],
+      ["KPI", "Total Payments YTD", s.totalPayments ?? 0, "", "", "Money out"],
+      ["KPI", "Net Cash Flow", netCF, "", "", "Receipts minus payments"],
+      ...bankAccounts.map((b: any) => [
+        "Bank account",
+        b.bankName,
+        b.accountNumber ?? "",
+        b.accountType,
+        b.bookBalance ?? 0,
+        b.statementBalance ?? "",
       ]),
-      'bank-balances.csv',
+      ...cashLedgers.map((l: any) => ["Cash ledger", l.name, "", l.group, l.closingBalance ?? 0, ""]),
+      ...upcomingEMIs.map((e: any) => ["Upcoming EMI", e.lenderName ?? "Lender", fmtDate(e.dueDate), e.purpose ?? "Loan EMI", e.emiAmount ?? 0, ""]),
+      ...maturingFDs.map((fd: any) => ["Maturing FD", fd.bankName ?? "Bank", fmtDate(fd.maturityDate), `${fd.interestRate ?? ""}%`, fd.principalAmount ?? fd.amount ?? 0, ""]),
+    ];
+
+    exportToCSV(
+      ["Section", "Name", "Date / Account", "Type / Group", "Amount / Book Balance", "Statement / Notes"],
+      rows,
+      "cash-flow-banking.csv",
     );
   };
 
@@ -90,18 +119,19 @@ export function CashFlow() {
     <div className="space-y-6">
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Cash Flow &amp; Banking</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Cash movement, bank balances, EMIs and liquidity</p>
-        </div>
-        <Button variant="outline" className="h-9 gap-1.5" onClick={handleExportCSV}>
-          <Download className="size-4" /> Export
-        </Button>
-      </div>
+      <PageHeader
+        title="Cash Flow & Banking"
+        subtitle="Cash movement · Bank balances · Liquidity"
+        className="mb-2 pb-3"
+        actions={
+          <Button variant="outline" className="h-8 gap-1.5 text-xs" onClick={handleExportCSV}>
+            <Download className="size-3.5" /> Export
+          </Button>
+        }
+      />
 
       {/* ── KPI row ──────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiTile label="Closing Cash"       value={fmt(s.totalCash ?? 0)}     icon={Wallet}       hint="Cash & bank on hand" tone="text-emerald-600" />
         <KpiTile label="Total Receipts YTD" value={fmt(s.totalReceipts ?? 0)} icon={TrendingUp}   hint="Money in" />
         <KpiTile label="Total Payments YTD" value={fmt(s.totalPayments ?? 0)} icon={TrendingDown} hint="Money out" tone="text-red-500" />

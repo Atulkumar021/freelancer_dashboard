@@ -22,33 +22,33 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    group: "Financials",
+    group: "Financial Reports",
     items: [
       { to: "/sales",         label: "Sales & Receivables",   icon: TrendingUp },
       { to: "/purchases",     label: "Purchases & Payables",  icon: ShoppingCart },
       { to: "/pnl",           label: "Profit & Loss",         icon: PieChart },
       { to: "/balance-sheet", label: "Balance Sheet",         icon: Scale },
       { to: "/cashflow",      label: "Cash Flow & Banking",   icon: Wallet },
-      { to: "/inventory",     label: "Inventory & Working Capital", icon: Package },
+      { to: "/inventory",     label: "Inventory",             icon: Package },
     ],
   },
   {
-    group: "Compliance",
+    group: "Compliance & KPIs",
     items: [
-      { to: "/compliance",   label: "Compliance & Tax",       icon: ShieldCheck },
-      { to: "/ratios",       label: "Financial Ratios & KPIs", icon: Activity },
+      { to: "/compliance",   label: "Compliance & Tax",        icon: ShieldCheck },
+      { to: "/ratios",       label: "Financial Ratios",        icon: Activity },
     ],
   },
   {
-    group: "Reports",
+    group: "Insights & Actions",
     items: [
-      { to: "/insights",  label: "Insights & Mgmt Reports",  icon: Lightbulb },
-      { to: "/documents", label: "Documents & Downloads",    icon: FileText },
-      { to: "/alerts",    label: "Alerts & Action Tracker",  icon: Bell },
+      { to: "/insights",  label: "Insights & Reports",  icon: Lightbulb },
+      { to: "/documents", label: "Documents & Downloads", icon: FileText },
+      { to: "/alerts",    label: "Alerts & Tasks",        icon: Bell },
     ],
   },
   {
-    group: "System",
+    group: "Settings",
     items: [
       { to: "/settings", label: "Settings & Access", icon: SettingsIcon },
     ],
@@ -72,9 +72,9 @@ function NavItem({
       title={collapsed ? label : undefined}
       style={{ animationDelay: `${Math.min(index * 25, 300)}ms` }}
       className={cn(
-        "group/nav relative flex items-center rounded-md text-[13px] overflow-hidden",
+        "group/nav relative flex items-center rounded-md text-sm overflow-hidden",
         "transition-all duration-300 active:scale-[0.97] animate-fade-in",
-        collapsed ? "justify-center px-0 py-2.5" : "px-3 py-2",
+        collapsed ? "justify-center px-0 py-2.5" : "px-3 py-2.5",
         active
           ? "bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent text-amber-300 font-medium"
           : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent hover:translate-x-0.5",
@@ -158,11 +158,16 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 
       {/* Navigation groups */}
       <nav className="flex-1 overflow-y-auto scrollbar-thin py-3">
-        {/* Home — AI CFO Home (standalone, above the groups) */}
-        <div className="px-2 mb-1">
+        {/* Home — AI CFO Dashboard */}
+        <div className="px-2 mb-2">
+          {!collapsed && (
+            <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/45">
+              Main
+            </p>
+          )}
           <NavItem
             to="/"
-            label="Home"
+            label="Dashboard Home"
             icon={Home}
             active={pathname === "/"}
             collapsed={collapsed}
@@ -172,9 +177,9 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
         {navGroups.map((group) => (
           <div key={group.group} className="mb-1">
             {!collapsed && (
-              <div className="px-4 py-1.5 flex items-center gap-1.5">
-                <span className="inline-block w-2.5 h-px bg-amber-400/30" aria-hidden />
-                <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-sidebar-foreground/35">
+              <div className="px-4 py-2 flex items-center gap-2">
+                <span className="inline-block w-3 h-px bg-amber-400/40" aria-hidden />
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
                   {group.group}
                 </span>
               </div>
@@ -195,7 +200,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       </nav>
 
       {/* Admin-only: Manage Users */}
-      {isRole('superadmin', 'admin') && (
+      {isRole('superadmin', 'admin', 'owner') && (
         <div className="px-2 pb-1">
           <NavItem
             to="/users"

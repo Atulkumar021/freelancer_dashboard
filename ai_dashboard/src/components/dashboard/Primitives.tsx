@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 
+/** Page-level title block — use once at the top of each dashboard route. */
 export function PageHeader({
   title,
   subtitle,
@@ -8,7 +9,7 @@ export function PageHeader({
   eyebrow,
 }: {
   title: string;
-  subtitle?: string;
+  subtitle?: React.ReactNode;
   actions?: React.ReactNode;
   className?: string;
   eyebrow?: string;
@@ -24,7 +25,7 @@ export function PageHeader({
         )}
         <h1 className="text-xl font-semibold text-foreground tracking-tight leading-tight">{title}</h1>
         {subtitle && (
-          <p className="text-sm text-muted-foreground mt-1.5 max-w-2xl leading-relaxed">{subtitle}</p>
+          <p className="text-sm text-muted-foreground mt-2 max-w-3xl leading-relaxed">{subtitle}</p>
         )}
       </div>
       {actions && (
@@ -38,24 +39,95 @@ export function SectionTitle({
   title,
   subtitle,
   action,
+  className,
 }: {
   title: string;
   subtitle?: string;
   action?: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
+    <div className={cn("flex items-start justify-between gap-3 mb-4 flex-wrap", className)}>
       <div className="flex items-start gap-2.5 min-w-0">
-        <span className="mt-[3px] block w-[3px] h-3.5 rounded-full bg-gradient-gold shrink-0" aria-hidden />
+        <span className="mt-1 block w-[3px] h-4 rounded-full bg-gradient-gold shrink-0" aria-hidden />
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-foreground leading-tight">{title}</h3>
+          <h3 className="text-[15px] font-semibold text-foreground leading-tight">{title}</h3>
           {subtitle && (
-            <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{subtitle}</p>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{subtitle}</p>
           )}
         </div>
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
+  );
+}
+
+/** Group label for stacked sections on a page (e.g. "Financial Summary"). */
+export function PageSection({
+  title,
+  subtitle,
+  children,
+  className,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={cn("space-y-3", className)}>
+      <div className="border-b border-border/60 pb-2">
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        {subtitle && (
+          <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
+        )}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** Card with a clear header — title, optional subtitle, icon, and action link. */
+export function SectionCard({
+  title,
+  subtitle,
+  icon: Icon,
+  action,
+  children,
+  className,
+  bodyClassName,
+  footer,
+}: {
+  title: string;
+  subtitle?: string;
+  icon?: React.ElementType;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+  bodyClassName?: string;
+  footer?: React.ReactNode;
+}) {
+  return (
+    <Panel className={cn("flex flex-col p-4 sm:p-5", className)}>
+      <div className="flex items-start justify-between gap-3 mb-4 shrink-0">
+        <div className="flex items-start gap-3 min-w-0">
+          {Icon && (
+            <span className="size-9 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+              <Icon className="size-4 text-accent" />
+            </span>
+          )}
+          <div className="min-w-0">
+            <h3 className="text-[15px] font-semibold text-foreground leading-tight">{title}</h3>
+            {subtitle && (
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{subtitle}</p>
+            )}
+          </div>
+        </div>
+        {action}
+      </div>
+      <div className={cn("flex-1 min-h-0", bodyClassName)}>{children}</div>
+      {footer && <div className="mt-4 shrink-0">{footer}</div>}
+    </Panel>
   );
 }
 

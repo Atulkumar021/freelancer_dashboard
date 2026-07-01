@@ -1,7 +1,18 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { BACKEND_URL } from '@/lib/api';
 
-export type UserRole = 'superadmin' | 'admin' | 'user';
+export type UserRole =
+  | 'superadmin'
+  | 'admin'
+  | 'owner'
+  | 'ceo'
+  | 'cfo'
+  | 'accountant'
+  | 'dept_head'
+  | 'branch'
+  | 'auditor'
+  | 'read_only'
+  | 'user';
 
 export interface AuthUser {
   id: string;

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Download, IndianRupee, BarChart3, Wallet, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Panel, SectionTitle } from "../Primitives";
+import { PageHeader, Panel, SectionTitle } from "../Primitives";
 import { MultiLine, BarsCompare } from "../Charts";
 import { api, fmt, monthName, toLakhs } from "@/lib/api";
 import { exportToCSV } from "@/lib/exportUtils";
@@ -78,15 +78,23 @@ function KpiTile({ label, value, icon: Icon, hint, tone }: {
   label: string; value: string; icon: React.ElementType; hint?: string; tone?: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-5 shadow-sm transition-all hover:border-accent/40 hover:shadow-md">
-      <span className="size-9 rounded-lg bg-accent/10 flex items-center justify-center">
-        <Icon className="size-[18px] text-accent" />
-      </span>
-      <p className="mt-4 text-sm text-muted-foreground">{label}</p>
-      <p className={cn("mt-1 text-2xl font-bold tabular-nums tracking-tight leading-none", tone ?? "text-foreground")}>
-        <AnimatedValue value={value} />
-      </p>
-      {hint && <p className="mt-2 text-[11px] text-muted-foreground">{hint}</p>}
+    <div className="rounded-lg border border-border bg-card p-3.5 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground leading-snug">{label}</p>
+          <p className={cn("mt-2 text-[22px] font-semibold tabular-nums tracking-tight leading-none", tone ?? "text-foreground")}>
+            <AnimatedValue value={value} />
+          </p>
+        </div>
+        <span className="size-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+          <Icon className="size-4 text-accent" />
+        </span>
+      </div>
+      {hint && (
+        <div className="mt-3 border-t border-border/60 pt-2.5">
+          <p className="text-[11px] text-muted-foreground leading-snug">{hint}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -145,28 +153,27 @@ export function ProfitLoss() {
     <div className="space-y-6">
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Profit &amp; Loss</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Income, costs and profitability · <span className="font-medium text-foreground">{fyLabel}</span>
-          </p>
-        </div>
+      <PageHeader
+        title="Profit & Loss"
+        subtitle={`Income · Costs · Profitability · ${fyLabel}`}
+        className="mb-2 pb-3"
+        actions={
         <Button
           variant="outline"
-          className="h-9 gap-1.5"
+          className="h-8 gap-1.5 text-xs"
           onClick={() => exportToCSV(
-            ['Line Item', mtdLabel, 'YTD'],
-            pnlRows.map((r) => [r.label, r.values.mtd, r.values.ytd]),
+            ['Line Item', mtdLabel, 'Prior', 'YTD'],
+            pnlRows.map((r) => [r.label, r.values.mtd, r.values.prior, r.values.ytd]),
             'profit-and-loss.csv',
           )}
         >
-          <Download className="size-4" /> Export
+          <Download className="size-3.5" /> Export
         </Button>
-      </div>
+        }
+      />
 
       {/* ── KPI row ──────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiTile label="Revenue (YTD)" value={fmt(revenue)}     icon={IndianRupee} hint="Financial year to date" />
         <KpiTile label="Gross Profit"  value={fmt(grossProfit)} icon={BarChart3}   hint={pctOf(grossProfit)} />
         <KpiTile label="EBITDA"        value={fmt(ebitda)}      icon={TrendingUp}  hint={pctOf(ebitda)} />

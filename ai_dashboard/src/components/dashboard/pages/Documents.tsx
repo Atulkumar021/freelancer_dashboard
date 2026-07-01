@@ -5,9 +5,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Panel, SectionTitle } from "../Primitives";
+import { PageHeader, Panel, SectionTitle } from "../Primitives";
 import { DonutChart } from "../Charts";
-import { downloadMockReport } from "@/lib/exportUtils";
+import { downloadMockReport, exportToCSV } from "@/lib/exportUtils";
 import { AnimatedValue } from "../Animated";
 
 /* ── Data ─────────────────────────────────────────────────────────────────── */
@@ -53,15 +53,23 @@ function KpiTile({ label, value, icon: Icon, hint }: {
   label: string; value: string; icon: React.ElementType; hint?: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-5 shadow-sm transition-all hover:border-accent/40 hover:shadow-md">
-      <span className="size-9 rounded-lg bg-accent/10 flex items-center justify-center">
-        <Icon className="size-[18px] text-accent" />
-      </span>
-      <p className="mt-4 text-sm text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-foreground leading-none">
-        <AnimatedValue value={value} />
-      </p>
-      {hint && <p className="mt-2 text-[11px] text-muted-foreground">{hint}</p>}
+    <div className="rounded-lg border border-border bg-card p-3.5 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground leading-snug">{label}</p>
+          <p className="mt-2 text-[22px] font-semibold tabular-nums tracking-tight text-foreground leading-none">
+            <AnimatedValue value={value} />
+          </p>
+        </div>
+        <span className="size-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+          <Icon className="size-4 text-accent" />
+        </span>
+      </div>
+      {hint && (
+        <div className="mt-3 border-t border-border/60 pt-2.5">
+          <p className="text-[11px] text-muted-foreground leading-snug">{hint}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -82,24 +90,29 @@ export function Documents() {
   const totalSize = '42.8 MB';
   const pdfCount  = docs.filter(d => d.type === 'PDF').length;
   const xlsCount  = docs.filter(d => d.type === 'Excel').length;
+  const handleExport = () => exportToCSV(
+    ['Name', 'Type', 'Category', 'Period', 'Size', 'Date'],
+    filtered.map(d => [d.name, d.type, d.cat, d.period, d.size, d.date]),
+    'documents-library.csv',
+  );
 
   return (
     <div className="space-y-6">
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Documents &amp; Downloads</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Reports, statements and supporting documents in one place</p>
-        </div>
-        <Button className="h-9 gap-1.5 bg-accent text-accent-foreground hover:bg-accent/90"
-          onClick={() => downloadMockReport('Monthly MIS Pack October 2025', 'pdf')}>
-          <Download className="size-4" /> Latest MIS
-        </Button>
-      </div>
+      <PageHeader
+        title="Documents & Downloads"
+        subtitle="Reports · Statements · Supporting documents"
+        className="mb-2 pb-3"
+        actions={
+          <Button className="h-8 gap-1.5 text-xs bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleExport}>
+            <Download className="size-3.5" /> Export
+          </Button>
+        }
+      />
 
       {/* ── KPI row ──────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiTile label="Total Documents" value={String(docs.length)} icon={Files}           hint="12 last month" />
         <KpiTile label="PDF Reports"     value={String(pdfCount)}    icon={FileText}        hint="Statements & packs" />
         <KpiTile label="Excel Reports"   value={String(xlsCount)}    icon={FileSpreadsheet} hint="Workings & extracts" />

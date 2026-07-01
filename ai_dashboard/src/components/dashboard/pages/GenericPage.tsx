@@ -60,14 +60,14 @@ export function GenericPage({
       <PageHeader
         title={title}
         subtitle={description}
-        eyebrow="AI Module"
+        className="mb-2 pb-3"
         actions={
           <>
-            <Button variant="outline" className="h-9 hidden sm:inline-flex">
-              <Sparkles className="size-4 mr-1.5 text-gold" /> Ask AI
+            <Button variant="outline" className="h-8 text-xs hidden sm:inline-flex">
+              <Sparkles className="size-3.5 mr-1.5 text-gold" /> Ask AI
             </Button>
-            <Button className="h-9 bg-gradient-gold text-black hover:opacity-90 shadow-gold">
-              <Activity className="size-4 mr-1.5" /> Live Sync
+            <Button className="h-8 text-xs bg-gradient-gold text-black hover:opacity-90 shadow-gold">
+              <Activity className="size-3.5 mr-1.5" /> Live Sync
             </Button>
           </>
         }

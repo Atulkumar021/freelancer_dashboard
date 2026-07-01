@@ -51,7 +51,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         <TopBar onMenu={() => setMobileOpen(true)} />
         {/* Scroll container — ONLY this scrolls; min-h-0 prevents flex blowout */}
         <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-          <div className="w-full min-h-full p-4 sm:p-6 lg:p-8 flex flex-col">
+          <div className="w-full min-h-full max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 flex flex-col">
             {children}
           </div>
         </main>

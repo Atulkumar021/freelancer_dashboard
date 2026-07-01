@@ -59,9 +59,9 @@ router.get('/me', requireJwt, async (req: Request, res: Response) => {
 });
 
 /* ── GET /api/auth/users ─── list users (admin+ only) ─────────────────── */
-router.get('/users', requireJwt, requireRole('superadmin', 'admin'), async (req: Request, res: Response) => {
+router.get('/users', requireJwt, requireRole('superadmin', 'admin', 'owner'), async (req: Request, res: Response) => {
   const filter: any = {};
-  if (req.jwtUser!.role === 'admin') {
+  if (req.jwtUser!.role !== 'superadmin') {
     filter.companyId = req.jwtUser!.companyId; // admins only see their company's users
   }
   const users = await User.find(filter).select('-passwordHash').sort({ createdAt: -1 }).lean();
@@ -69,19 +69,19 @@ router.get('/users', requireJwt, requireRole('superadmin', 'admin'), async (req:
 });
 
 /* ── POST /api/auth/users ─── create user (admin+ only) ───────────────── */
-router.post('/users', requireJwt, requireRole('superadmin', 'admin'), async (req: Request, res: Response) => {
+router.post('/users', requireJwt, requireRole('superadmin', 'admin', 'owner'), async (req: Request, res: Response) => {
   const { email, password, name, role, companyId } = req.body;
   if (!email || !password || !name || !role) {
     res.status(400).json({ success: false, error: 'email, password, name, role required' });
     return;
   }
-  // Admins cannot create superadmin
-  if (req.jwtUser!.role === 'admin' && role === 'superadmin') {
+  // Company admins/owners cannot create superadmin
+  if (req.jwtUser!.role !== 'superadmin' && role === 'superadmin') {
     res.status(403).json({ success: false, error: 'Cannot create superadmin' });
     return;
   }
-  // Admins can only create users for their own company
-  const targetCompanyId = req.jwtUser!.role === 'admin' ? req.jwtUser!.companyId : companyId;
+  // Company admins/owners can only create users for their own company
+  const targetCompanyId = req.jwtUser!.role !== 'superadmin' ? req.jwtUser!.companyId : companyId;
 
   const existing = await User.findOne({ email: email.toLowerCase().trim() });
   if (existing) {
@@ -97,7 +97,7 @@ router.post('/users', requireJwt, requireRole('superadmin', 'admin'), async (req
 });
 
 /* ── PATCH /api/auth/users/:id ─── update user ────────────────────────── */
-router.patch('/users/:id', requireJwt, requireRole('superadmin', 'admin'), async (req: Request, res: Response) => {
+router.patch('/users/:id', requireJwt, requireRole('superadmin', 'admin', 'owner'), async (req: Request, res: Response) => {
   const { name, role, isActive, password, companyId } = req.body;
   const update: any = {};
   if (name)     update.name     = name;

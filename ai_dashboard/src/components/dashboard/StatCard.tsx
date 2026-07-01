@@ -35,7 +35,7 @@ export function StatCard({ label, value, previous, deltaPct, invertGood, hint, h
       <span className="absolute -right-10 -top-10 size-24 rounded-full bg-gradient-gold opacity-0 group-hover:opacity-10 blur-xl transition-opacity duration-300 pointer-events-none" aria-hidden />
 
       {/* Metric label */}
-      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground mb-2 leading-snug">
+      <p className="text-xs font-medium text-muted-foreground mb-2 leading-snug">
         {label}
       </p>
 

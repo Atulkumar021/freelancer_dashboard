@@ -3,9 +3,20 @@ import { Plus, Pencil, Trash2, X, Check, Loader2, Users as UsersIcon, UserCheck,
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { BACKEND_URL } from '@/lib/api';
-import { Panel, SectionTitle, Badge } from '@/components/dashboard/Primitives';
+import { PageHeader, Panel, SectionTitle, Badge } from '@/components/dashboard/Primitives';
 
-type Role = 'superadmin' | 'admin' | 'user';
+type Role =
+  | 'superadmin'
+  | 'admin'
+  | 'owner'
+  | 'ceo'
+  | 'cfo'
+  | 'accountant'
+  | 'dept_head'
+  | 'branch'
+  | 'auditor'
+  | 'read_only'
+  | 'user';
 
 interface UserRow {
   id: string;
@@ -18,8 +29,38 @@ interface UserRow {
   createdAt: string;
 }
 
-const ROLE_LABEL: Record<Role, string> = { superadmin: 'Super Admin', admin: 'Admin', user: 'User' };
-const ROLE_VARIANT: Record<Role, 'gold' | 'info' | 'default'> = { superadmin: 'gold', admin: 'info', user: 'default' };
+const ROLE_OPTIONS: { value: Role; label: string; system?: boolean }[] = [
+  { value: 'owner', label: 'Owner' },
+  { value: 'ceo', label: 'CEO' },
+  { value: 'cfo', label: 'CFO' },
+  { value: 'accountant', label: 'Accountant' },
+  { value: 'dept_head', label: 'Dept Head' },
+  { value: 'branch', label: 'Branch' },
+  { value: 'auditor', label: 'Auditor' },
+  { value: 'read_only', label: 'Read-only' },
+  { value: 'admin', label: 'Admin', system: true },
+  { value: 'superadmin', label: 'Super Admin', system: true },
+  { value: 'user', label: 'User', system: true },
+];
+
+const ROLE_LABEL: Record<Role, string> = ROLE_OPTIONS.reduce((acc, role) => {
+  acc[role.value] = role.label;
+  return acc;
+}, {} as Record<Role, string>);
+
+const ROLE_VARIANT: Record<Role, 'gold' | 'info' | 'default' | 'success' | 'warning'> = {
+  superadmin: 'gold',
+  admin: 'info',
+  owner: 'gold',
+  ceo: 'info',
+  cfo: 'success',
+  accountant: 'default',
+  dept_head: 'warning',
+  branch: 'default',
+  auditor: 'info',
+  read_only: 'default',
+  user: 'default',
+};
 
 /* ── Role-Based Access policy matrix (display + edit) ───────────────────── */
 const ROLE_COLS = ['Owner', 'CEO', 'CFO', 'Accountant', 'Dept Head', 'Branch', 'Auditor', 'Read-only'];
@@ -74,7 +115,7 @@ export function Users() {
   const [error,   setError]   = useState('');
   const [access,  setAccess]  = useState<Set<string>>(seedAccess);
 
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'user' as Role, companyId: 'cmp_001', isActive: true });
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'read_only' as Role, companyId: 'cmp_001', isActive: true });
 
   useEffect(() => { loadUsers(); }, []);
 
@@ -89,7 +130,7 @@ export function Users() {
   }
 
   function openCreate() {
-    setForm({ name: '', email: '', password: '', role: 'user', companyId: me?.companyId ?? 'cmp_001', isActive: true });
+    setForm({ name: '', email: '', password: '', role: 'read_only', companyId: me?.companyId ?? 'cmp_001', isActive: true });
     setEditing(null); setError(''); setModal('create');
   }
   function openEdit(u: UserRow) {
@@ -133,30 +174,31 @@ export function Users() {
     setAccess((prev) => { const n = new Set(prev); const k = `${cap}:${role}`; n.has(k) ? n.delete(k) : n.add(k); return n; });
 
   const activeCount = users.filter((u) => u.isActive).length;
-  const adminCount  = users.filter((u) => u.role === 'superadmin' || u.role === 'admin').length;
+  const adminCount  = users.filter((u) => u.role === 'superadmin' || u.role === 'admin' || u.role === 'owner').length;
 
   return (
     <div className="space-y-6">
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Users &amp; Access Control</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Manage system users, roles and permissions</p>
-        </div>
-        <button
-          onClick={openCreate}
-          className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-semibold bg-accent text-accent-foreground hover:bg-accent/90 transition-colors"
-        >
-          <Plus className="size-4" /> Add User
-        </button>
-      </div>
+      <PageHeader
+        title="Users & Access Control"
+        subtitle="Manage users · Roles · Permissions"
+        className="mb-2 pb-3"
+        actions={
+          <button
+            onClick={openCreate}
+            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-accent text-accent-foreground hover:bg-accent/90 transition-colors"
+          >
+            <Plus className="size-3.5" /> Add User
+          </button>
+        }
+      />
 
       {/* ── Summary ──────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-4">
         <StatTile icon={UsersIcon}   label="Total Users"        value={String(users.length)} />
         <StatTile icon={UserCheck}   label="Active"             value={String(activeCount)} />
-        <StatTile icon={ShieldCheck} label="Admins / Superadmins" value={String(adminCount)} />
+        <StatTile icon={ShieldCheck} label="Admin / Owner" value={String(adminCount)} />
       </div>
 
       {/* ── User table ───────────────────────────────────────────────────── */}
@@ -292,9 +334,16 @@ export function Users() {
                 <div>
                   <label className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Role</label>
                   <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as Role }))} className={inputCls}>
-                    {isRole('superadmin') && <option value="superadmin">Super Admin</option>}
-                    <option value="admin">Admin</option>
-                    <option value="user">User</option>
+                    {ROLE_OPTIONS
+                      .filter((role) => {
+                        if (role.value === 'superadmin') return isRole('superadmin');
+                        if (role.value === 'admin') return isRole('superadmin');
+                        if (role.value === 'user') return false;
+                        return true;
+                      })
+                      .map((role) => (
+                        <option key={role.value} value={role.value}>{role.label}</option>
+                      ))}
                   </select>
                 </div>
                 <div>

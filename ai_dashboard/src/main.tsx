@@ -62,7 +62,7 @@ createRoot(document.getElementById("root")!).render(
 
                     {/* Admin-only */}
                     <Route path="/users" element={
-                      <ProtectedRoute roles={['superadmin', 'admin']}>
+                      <ProtectedRoute roles={['superadmin', 'admin', 'owner']}>
                         <Users />
                       </ProtectedRoute>
                     } />

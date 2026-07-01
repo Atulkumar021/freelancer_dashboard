@@ -28,6 +28,19 @@ const EXPORT_ITEMS = [
   { label: "Compliance Summary",   icon: ShieldCheck,     fn: () => downloadMockReport("Compliance Summary", "pdf") },
 ];
 const logo = "/logo.png";
+const ROLE_LABEL: Record<string, string> = {
+  superadmin: "Super Admin",
+  admin: "Admin",
+  owner: "Owner",
+  ceo: "CEO",
+  cfo: "CFO",
+  accountant: "Accountant",
+  dept_head: "Dept Head",
+  branch: "Branch",
+  auditor: "Auditor",
+  read_only: "Read-only",
+  user: "User",
+};
 
 export function TopBar({ onMenu }: { onMenu?: () => void }) {
   const navigate     = useNavigate();
@@ -57,6 +70,7 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
   const initials = user?.name
     ? user.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : 'U';
+  const roleLabel = user?.role ? ROLE_LABEL[user.role] ?? user.role : '';
 
   return (
     <header className="shrink-0 w-full bg-card border-b border-border z-30">
@@ -81,7 +95,8 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
         </div>
 
         {/* ── Period + org filters ─────────────────────────────────────── */}
-        <div className="hidden 2xl:flex items-center gap-1.5 ml-1 shrink-0">
+        <div className="hidden 2xl:flex items-center gap-2 ml-1 shrink-0">
+          <span className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">Period:</span>
           <Select value={filters.fy} onValueChange={v => setFilter('fy', v)}>
             <SelectTrigger className="h-8 w-[108px] text-xs border-border bg-background gap-1 pr-2">
               <SelectValue />
@@ -133,7 +148,8 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
         </div>
 
         {/* Tablet / mid widths: just month + branch */}
-        <div className="hidden lg:flex 2xl:hidden items-center gap-1.5 ml-1 shrink-0">
+        <div className="hidden lg:flex 2xl:hidden items-center gap-2 ml-1 shrink-0">
+          <span className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">Filters:</span>
           <Select value={filters.month} onValueChange={v => setFilter('month', v)}>
             <SelectTrigger className="h-8 w-[108px] text-xs border-border bg-background">
               <SelectValue />
@@ -200,12 +216,17 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
         <button
           onClick={conn.refresh}
           title="Refresh connection status"
+          aria-label="Refresh connection status"
           className="hidden sm:flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0"
         >
           <RefreshCw className={cn("size-4", conn.checking && "animate-spin")} />
         </button>
 
-        <button className="hidden md:flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0">
+        <button
+          title="Help & documentation"
+          aria-label="Help and documentation"
+          className="hidden md:flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0"
+        >
           <HelpCircle className="size-4" />
         </button>
 
@@ -213,16 +234,21 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
         <button
           onClick={() => setPanelOpen(true)}
           title="Advanced filters"
+          aria-label="Open advanced filters"
           className="relative hidden sm:flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0"
         >
           <SlidersHorizontal className="size-4" />
           {activeFilterCount > 0 && (
-            <span className="absolute top-1 right-1 size-2 rounded-full bg-gold" />
+            <span className="absolute top-1 right-1 size-2 rounded-full bg-gold" aria-label={`${activeFilterCount} active filters`} />
           )}
         </button>
 
         {/* Notification bell with badge */}
-        <button className="relative size-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0">
+        <button
+          title="Notifications"
+          aria-label="View notifications"
+          className="relative size-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0"
+        >
           <Bell className="size-4" />
           <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-destructive" />
         </button>
@@ -278,7 +304,7 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
             </div>
             <div className="hidden 2xl:flex flex-col leading-tight text-left">
               <span className="text-[13px] font-medium leading-none">{user?.name ?? 'User'}</span>
-              <span className="text-[10px] text-muted-foreground mt-0.5 capitalize">{user?.role ?? ''}</span>
+              <span className="text-[10px] text-muted-foreground mt-0.5">{roleLabel}</span>
             </div>
             <ChevronDown className="hidden 2xl:block size-3.5 text-muted-foreground" />
           </button>
@@ -291,12 +317,12 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
                 <span className={cn(
                   "inline-block mt-1.5 text-[10px] font-semibold px-2 py-0.5 rounded capitalize",
                   user?.role === 'superadmin' ? "bg-purple-50 text-purple-700"
-                  : user?.role === 'admin'    ? "bg-amber-50 text-amber-700"
+                  : user?.role === 'admin' || user?.role === 'owner' ? "bg-amber-50 text-amber-700"
                   : "bg-emerald-50 text-emerald-700"
-                )}>{user?.role}</span>
+                )}>{roleLabel}</span>
               </div>
               <div className="py-1">
-                {isRole('superadmin', 'admin') && (
+                {isRole('superadmin', 'admin', 'owner') && (
                   <button
                     onClick={() => { setUserMenuOpen(false); navigate('/users'); }}
                     className="w-full flex items-center gap-2.5 px-4 py-2 text-sm hover:bg-secondary transition-colors text-left"

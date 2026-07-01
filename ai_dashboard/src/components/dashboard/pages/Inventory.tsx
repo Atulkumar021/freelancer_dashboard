@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Panel, SectionTitle, Badge } from '../Primitives';
+import { PageHeader, Panel, SectionTitle, Badge } from '../Primitives';
 import { DonutChart, MultiLine } from '../Charts';
 import { DrillDownModal, useDrillDown } from '../DrillDownModal';
 import { exportToCSV } from '@/lib/exportUtils';
@@ -62,22 +62,27 @@ function KpiTile({ label, value, icon: Icon, delta, good, hint, onClick }: {
   return (
     <div
       onClick={onClick}
-      className={cn("rounded-xl border border-border bg-card p-5 shadow-sm transition-all hover:border-accent/40 hover:shadow-md", onClick && "cursor-pointer")}
+      className={cn("rounded-lg border border-border bg-card p-3.5 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant", onClick && "cursor-pointer")}
     >
-      <div className="flex items-center justify-between">
-        <span className="size-9 rounded-lg bg-accent/10 flex items-center justify-center">
-          <Icon className="size-[18px] text-accent" />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground leading-snug">{label}</p>
+          <p className="mt-2 text-[22px] font-semibold tabular-nums tracking-tight text-foreground leading-none">
+            <AnimatedValue value={value} />
+          </p>
+        </div>
+        <span className="size-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+          <Icon className="size-4 text-accent" />
         </span>
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5">
+        <span className="text-[11px] text-muted-foreground">Change</span>
         <span className={cn("inline-flex items-center gap-0.5 text-xs font-semibold tabular-nums", good ? "text-emerald-600" : "text-red-500")}>
           {up ? <TrendingUp className="size-3.5" /> : <TrendingDown className="size-3.5" />}
           {up ? "+" : ""}{delta}%
         </span>
       </div>
-      <p className="mt-4 text-sm text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-foreground leading-none">
-        <AnimatedValue value={value} />
-      </p>
-      {hint && <p className="mt-2 text-[11px] text-muted-foreground">{hint}</p>}
+      {hint && <p className="mt-2 text-[11px] text-muted-foreground leading-snug">{hint}</p>}
     </div>
   );
 }
@@ -105,9 +110,23 @@ export function Inventory() {
   }, []);
 
   const handleExportCSV = () => {
+    const rows: (string | number)[][] = [
+      ['KPI', 'Total Inventory Value', '₹4.20 Cr', '+9.4%', 'Prev ₹3.84 Cr'],
+      ['KPI', 'Total SKUs', '2,842', '+2.2%', 'Prev 2,780'],
+      ['KPI', 'Low Stock Alerts', '48', '+50%', 'Prev 32'],
+      ['KPI', 'Dead Stock Value', '₹0.56 Cr', '+33.3%', 'Prev ₹0.42 Cr'],
+      ...topStockItems.map(i => ['Top stock item', i.name, i.value, i.qty, `${i.days} days`]),
+      ...agingData.map(a => ['Stock ageing', a.range, a.value, a.qty, a.status]),
+      ...reorderAlerts.map(r => ['Reorder alert', r.name, r.stock, r.reorder, r.status]),
+      ['Working capital', 'Net Working Capital', wc?.netWorkingCapital ?? 0, '', ''],
+      ['Working capital', 'Current Assets', wc?.currentAssets ?? 0, '', ''],
+      ['Working capital', 'Current Liabilities', wc?.currentLiabilities ?? 0, '', ''],
+      ['Working capital', 'Cash Conversion Cycle', `${wc?.cashConversionCycle ?? 0}d`, '', ''],
+    ];
+
     exportToCSV(
-      ['Item Name', 'Category', 'Qty', 'Value', 'Days in Stock'],
-      topStockItems.map(i => [i.name, i.category, i.qty, i.value, i.days]),
+      ['Section', 'Metric / Item', 'Value', 'Qty / Change / Reorder', 'Status / Notes'],
+      rows,
       'inventory-stock.csv',
     );
   };
@@ -117,18 +136,19 @@ export function Inventory() {
       <DrillDownModal state={state} onClose={close} />
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Inventory &amp; Working Capital</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Stock levels, ageing, reorder management and the operating cycle</p>
-        </div>
-        <Button variant="outline" className="h-9 gap-1.5" onClick={handleExportCSV}>
-          <Download className="size-4" /> Export
-        </Button>
-      </div>
+      <PageHeader
+        title="Inventory & Working Capital"
+        subtitle="Stock levels · Ageing · Reorder management"
+        className="mb-2 pb-3"
+        actions={
+          <Button variant="outline" className="h-8 gap-1.5 text-xs" onClick={handleExportCSV}>
+            <Download className="size-3.5" /> Export
+          </Button>
+        }
+      />
 
       {/* ── KPI row ──────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiTile label="Total Inventory Value" value="₹4.20 Cr" icon={Package}       delta={9.4}  good hint="Prev ₹3.84 Cr"
           onClick={() => open('assets', 'Total Inventory', '₹4.20 Cr')} />
         <KpiTile label="Total SKUs"            value="2,842"    icon={Boxes}         delta={2.2}  good hint="Prev 2,780"

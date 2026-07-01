@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Download, Landmark, CreditCard, TrendingUp, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Panel, SectionTitle } from "../Primitives";
+import { PageHeader, Panel, SectionTitle } from "../Primitives";
 import { DonutChart } from "../Charts";
 import { DrillDownModal, useDrillDown } from "../DrillDownModal";
 import { exportToCSV } from "@/lib/exportUtils";
@@ -31,18 +31,26 @@ function KpiTile({ label, value, icon: Icon, hint, tone, onClick }: {
     <div
       onClick={onClick}
       className={cn(
-        "rounded-xl border border-border bg-card p-5 shadow-sm transition-all hover:border-accent/40 hover:shadow-md",
+        "rounded-lg border border-border bg-card p-3.5 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant",
         onClick && "cursor-pointer",
       )}
     >
-      <span className="size-9 rounded-lg bg-accent/10 flex items-center justify-center">
-        <Icon className="size-[18px] text-accent" />
-      </span>
-      <p className="mt-4 text-sm text-muted-foreground">{label}</p>
-      <p className={cn("mt-1 text-2xl font-bold tabular-nums tracking-tight leading-none", tone ?? "text-foreground")}>
-        <AnimatedValue value={value} />
-      </p>
-      {hint && <p className="mt-2 text-[11px] text-muted-foreground">{hint}</p>}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground leading-snug">{label}</p>
+          <p className={cn("mt-2 text-[22px] font-semibold tabular-nums tracking-tight leading-none", tone ?? "text-foreground")}>
+            <AnimatedValue value={value} />
+          </p>
+        </div>
+        <span className="size-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+          <Icon className="size-4 text-accent" />
+        </span>
+      </div>
+      {hint && (
+        <div className="mt-3 border-t border-border/60 pt-2.5">
+          <p className="text-[11px] text-muted-foreground leading-snug">{hint}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -143,6 +151,10 @@ export function BalanceSheet() {
 
   const handleExportCSV = () => {
     const allRows = [
+      ['KPI', 'Total Assets', '', s.totalAssets ?? 0],
+      ['KPI', 'Total Liabilities', '', s.totalLiabilities ?? 0],
+      ['KPI', 'Net Worth', '', s.netWorth ?? 0],
+      ['KPI', 'Net Working Capital', '', s.workingCapital ?? 0],
       ...ncA.map((l: any)  => ['Non-Current Asset', l.name, l.group ?? '', l.closingBalance ?? 0]),
       ...currA.map((l: any) => ['Current Asset',     l.name, l.group ?? '', l.closingBalance ?? 0]),
       ...eq.map((l: any)    => ['Equity',            l.name, l.group ?? '', l.closingBalance ?? 0]),
@@ -157,18 +169,19 @@ export function BalanceSheet() {
       <DrillDownModal state={state} onClose={close} />
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Balance Sheet</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Assets, liabilities and shareholders' equity</p>
-        </div>
-        <Button variant="outline" className="h-9 gap-1.5" onClick={handleExportCSV}>
-          <Download className="size-4" /> Export
-        </Button>
-      </div>
+      <PageHeader
+        title="Balance Sheet"
+        subtitle="Assets · Liabilities · Equity"
+        className="mb-2 pb-3"
+        actions={
+          <Button variant="outline" className="h-8 gap-1.5 text-xs" onClick={handleExportCSV}>
+            <Download className="size-3.5" /> Export
+          </Button>
+        }
+      />
 
       {/* ── KPI row ──────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiTile label="Total Assets" value={fmt(s.totalAssets ?? 0)} icon={Landmark}
           hint={`Current ratio ${(s.currentRatio ?? 0).toFixed(2)}x`}
           onClick={() => open('assets', 'Total Assets', fmt(s.totalAssets ?? 0))} />

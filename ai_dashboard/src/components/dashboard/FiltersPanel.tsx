@@ -36,7 +36,7 @@ function FilterRow({
   const { filters, setFilter } = useFilters();
   return (
     <div className="space-y-1.5">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <Select
         value={filters[fieldKey]}
         onValueChange={val => setFilter(fieldKey, val)}
@@ -77,14 +77,17 @@ export function FiltersPanel() {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-          <div className="flex items-center gap-2">
-            <SlidersHorizontal className="size-4 text-gold" />
-            <span className="font-semibold text-sm">Advanced Filters</span>
-            {activeFilterCount > 0 && (
-              <span className="size-5 rounded-full bg-gold text-black text-[10px] font-bold flex items-center justify-center">
-                {activeFilterCount}
-              </span>
-            )}
+          <div>
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="size-4 text-gold" />
+              <span className="font-semibold text-sm">Advanced Filters</span>
+              {activeFilterCount > 0 && (
+                <span className="size-5 rounded-full bg-gold text-black text-[10px] font-bold flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 pl-6">Narrow data by period, branch, department & more</p>
           </div>
           <div className="flex items-center gap-2">
             {activeFilterCount > 0 && (
@@ -109,14 +112,14 @@ export function FiltersPanel() {
         {/* Scrollable filter list */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
 
-          <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground font-semibold">Period</p>
+          <p className="text-xs font-semibold text-foreground">Period</p>
 
           <FilterRow label="Financial Year"   fieldKey="fy"    options={FY_OPTIONS} />
           <FilterRow label="Month"            fieldKey="month" options={MONTH_OPTIONS} />
 
           {/* Custom date range */}
           <div className="space-y-1.5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Custom Date Range</p>
+            <p className="text-xs font-medium text-muted-foreground">Custom date range</p>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <p className="text-[10px] text-muted-foreground mb-1">From</p>
@@ -140,7 +143,7 @@ export function FiltersPanel() {
           </div>
 
           <hr className="border-border" />
-          <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground font-semibold">Organisation</p>
+          <p className="text-xs font-semibold text-foreground">Organisation</p>
 
           <FilterRow label="Company / Entity"    fieldKey="company"    options={COMPANY_OPTIONS} />
           <FilterRow label="Branch / Location"   fieldKey="branch"     options={BRANCH_OPTIONS} />
@@ -149,14 +152,14 @@ export function FiltersPanel() {
           <FilterRow label="Project"             fieldKey="project"    options={PROJECT_OPTIONS} />
 
           <hr className="border-border" />
-          <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground font-semibold">Counterparty</p>
+          <p className="text-xs font-semibold text-foreground">Counterparty</p>
 
           <FilterRow label="Customer Group"       fieldKey="customerGroup"  options={CUST_GRP} />
           <FilterRow label="Vendor Group"         fieldKey="vendorGroup"    options={VENDOR_GRP} />
           <FilterRow label="Product / Service"    fieldKey="productCategory" options={PRODUCT_CAT} />
 
           <hr className="border-border" />
-          <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground font-semibold">Regulatory</p>
+          <p className="text-xs font-semibold text-foreground">Regulatory</p>
 
           <FilterRow label="GSTIN"               fieldKey="gstin"    options={GSTIN_OPTIONS} />
           <FilterRow label="Currency"            fieldKey="currency" options={CURRENCY_OPTIONS} />

@@ -4,7 +4,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Panel, SectionTitle, Badge } from "../Primitives";
+import { PageHeader, Panel, SectionTitle, Badge } from "../Primitives";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -81,6 +81,20 @@ const auditLog = [
   { user: "Saurabh Agarwal", action: "Changed financial year to FY 2025-26",  time: "11 Jun, 09:48" },
 ];
 
+const ROLE_LABEL: Record<string, string> = {
+  superadmin: "Super Admin",
+  admin: "Admin",
+  owner: "Owner",
+  ceo: "CEO",
+  cfo: "CFO",
+  accountant: "Accountant",
+  dept_head: "Dept Head",
+  branch: "Branch",
+  auditor: "Auditor",
+  read_only: "Read-only",
+  user: "User",
+};
+
 /* ── Component ──────────────────────────────────────────────────────────── */
 export function Settings() {
   const { theme, setTheme } = useTheme();
@@ -117,16 +131,17 @@ export function Settings() {
     <div className="space-y-6">
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Settings</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Company profile, data source and preferences</p>
-        </div>
-        <div className="flex items-center gap-3">
+      <PageHeader
+        title="Settings"
+        subtitle="Company profile · Data source · Preferences"
+        className="mb-2 pb-3"
+        actions={
+        <div className="flex items-center gap-3 flex-wrap">
           {saved && <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600"><Check className="size-4" /> All changes saved</span>}
-          <Button className="h-9 gap-1.5 bg-accent text-accent-foreground hover:bg-accent/90" onClick={save}>Save Changes</Button>
+          <Button className="h-8 gap-1.5 text-xs bg-accent text-accent-foreground hover:bg-accent/90" onClick={save}>Save Changes</Button>
         </div>
-      </div>
+        }
+      />
 
       {/* ── Company Profile ──────────────────────────────────────────────── */}
       <Panel>
@@ -312,7 +327,7 @@ export function Settings() {
             </tbody>
           </table>
         </div>
-        <p className="text-[11px] text-muted-foreground mt-3">Showing the last {auditLog.length} actions{user?.role ? ` · signed in as ${user.role}` : ""}.</p>
+        <p className="text-[11px] text-muted-foreground mt-3">Showing the last {auditLog.length} actions{user?.role ? ` · signed in as ${ROLE_LABEL[user.role] ?? user.role}` : ""}.</p>
       </Panel>
     </div>
   );

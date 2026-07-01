@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Panel, SectionTitle } from "../Primitives";
+import { PageHeader, Panel, SectionTitle } from "../Primitives";
 import { api, monthName } from "@/lib/api";
 import { MultiLine } from "../Charts";
 import { exportToCSV } from "@/lib/exportUtils";
@@ -168,26 +168,27 @@ export function Ratios() {
     <div className="space-y-6">
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Financial Ratios &amp; KPIs</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Liquidity, solvency, profitability and efficiency — computed from live data</p>
-        </div>
-        <Button
-          variant="outline"
-          className="h-9 gap-1.5"
-          onClick={() => exportToCSV(
-            ['Group', 'Ratio', 'Value', 'Benchmark', 'Status'],
-            groups.flatMap((g) => g.items.map((it) => {
-              const s = ratioStatus(it.key, parseFloat(it.display));
-              return [g.title, it.label, it.display, it.bench, label(s)];
-            })),
-            'financial-ratios.csv',
-          )}
-        >
-          <Download className="size-4" /> Export
-        </Button>
-      </div>
+      <PageHeader
+        title="Financial Ratios & KPIs"
+        subtitle="Liquidity · Solvency · Profitability · Efficiency"
+        className="mb-2 pb-3"
+        actions={
+          <Button
+            variant="outline"
+            className="h-8 gap-1.5 text-xs"
+            onClick={() => exportToCSV(
+              ['Group', 'Ratio', 'Value', 'Benchmark', 'Formula', 'Status'],
+              groups.flatMap((g) => g.items.map((it) => {
+                const s = ratioStatus(it.key, parseFloat(it.display));
+                return [g.title, it.label, it.display, it.bench, it.formula, label(s)];
+              })),
+              'financial-ratios.csv',
+            )}
+          >
+            <Download className="size-3.5" /> Export
+          </Button>
+        }
+      />
 
       {/* ── Margin trend ─────────────────────────────────────────────────── */}
       {trendData.length > 0 && (

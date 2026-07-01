@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Panel, SectionTitle, Badge } from "../Primitives";
+import { PageHeader, Panel, SectionTitle, Badge } from "../Primitives";
 import { BarsCompare, DonutChart } from "../Charts";
 import { exportToCSV } from "@/lib/exportUtils";
 import { AnimatedValue } from "../Animated";
@@ -74,22 +74,28 @@ function KpiTile({ label, value, icon: Icon, delta, good, hint }: {
 }) {
   const up = delta >= 0;
   return (
-    <div className="rounded-xl border border-border bg-card p-5 shadow-sm transition-all hover:border-accent/40 hover:shadow-md">
-      <div className="flex items-center justify-between">
-        <span className="size-9 rounded-lg bg-accent/10 flex items-center justify-center">
-          <Icon className="size-[18px] text-accent" />
+    <div className="rounded-lg border border-border bg-card p-3.5 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground leading-snug">{label}</p>
+          <p className="mt-2 text-[22px] font-semibold tabular-nums tracking-tight text-foreground leading-none">
+            <AnimatedValue value={value} />
+          </p>
+        </div>
+        <span className="size-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+          <Icon className="size-4 text-accent" />
         </span>
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5">
+        <span className="text-[11px] text-muted-foreground">Change</span>
         {delta !== 0 && (
           <span className={cn("text-xs font-semibold tabular-nums", good ? "text-emerald-600" : "text-red-500")}>
             {up ? "+" : ""}{delta}%
           </span>
         )}
+        {delta === 0 && <span className="text-xs font-semibold text-muted-foreground">Flat</span>}
       </div>
-      <p className="mt-4 text-sm text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-foreground leading-none">
-        <AnimatedValue value={value} />
-      </p>
-      {hint && <p className="mt-2 text-[11px] text-muted-foreground">{hint}</p>}
+      {hint && <p className="mt-2 text-[11px] text-muted-foreground leading-snug">{hint}</p>}
     </div>
   );
 }
@@ -128,14 +134,14 @@ export function Alerts() {
     <div className="space-y-6">
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Alerts &amp; Action Tracker</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Items needing attention — assign owners and track resolution</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" className="h-9 gap-1.5" onClick={handleExport}>
-            <Download className="size-4" /> Export
+      <PageHeader
+        title="Alerts & Action Tracker"
+        subtitle="Owners · Due dates · Resolution status"
+        className="mb-2 pb-3"
+        actions={
+        <>
+          <Button variant="outline" className="h-8 gap-1.5 text-xs" onClick={handleExport}>
+            <Download className="size-3.5" /> Export
           </Button>
           <div className="flex gap-1 p-1 rounded-lg bg-secondary border border-border">
             {(['overview','tracker'] as const).map(t => (
@@ -149,11 +155,12 @@ export function Alerts() {
               </button>
             ))}
           </div>
-        </div>
-      </div>
+        </>
+        }
+      />
 
       {/* ── KPI row ──────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiTile label="Open Alerts"     value={String(openCount)}   icon={Bell}          delta={-14.3} good      hint="14 last month" />
         <KpiTile label="High Severity"   value={String(highCount)}   icon={AlertTriangle} delta={0}     good={false} hint="Needs action now" />
         <KpiTile label="Medium Severity" value={String(medCount)}    icon={AlertCircle}   delta={-20}   good      hint="5 last month" />
