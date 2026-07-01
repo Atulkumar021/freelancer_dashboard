@@ -172,15 +172,15 @@ export function AiCfoHome() {
         title="Today's overview"
         subtitle="Health score, AI commentary, and what needs your attention right now"
       >
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:flex-1 lg:min-h-0">
+        <div className="columns-1 xl:columns-2 gap-4">
 
           {/* Business Health Score */}
           <SectionCard
             title="Business Health Score"
             subtitle="Overall rating based on collections, liquidity, profit, compliance & growth"
             icon={Activity}
-            className="lg:min-h-0"
-            bodyClassName="overflow-y-auto pr-1 scrollbar-thin"
+            className="mb-4 break-inside-avoid inline-block w-full"
+            bodyClassName="pr-1"
             footer={
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" className="flex-1 gap-1.5 text-xs" onClick={() => navigate("/ratios")}>
@@ -218,8 +218,8 @@ export function AiCfoHome() {
             title="Management Commentary"
             subtitle="AI summary for April 2025 — performance, risks & recommended actions"
             icon={FileText}
-            className="lg:min-h-0"
-            bodyClassName="overflow-y-auto pr-1 scrollbar-thin space-y-4"
+            className="mb-4 break-inside-avoid inline-block w-full"
+            bodyClassName="pr-1 space-y-4"
             footer={
               <div className="flex gap-2">
                 <Button size="sm" className="flex-1 gap-1.5 text-xs bg-accent text-accent-foreground hover:bg-accent/90"
@@ -249,16 +249,14 @@ export function AiCfoHome() {
             ))}
           </SectionCard>
 
-          {/* Priorities + Compliance */}
-          <div className="grid gap-4 lg:grid-rows-2 lg:min-h-0">
-
-            <SectionCard
+          {/* Priorities */}
+          <SectionCard
               title="Today's Priorities"
               subtitle="Tasks ranked by urgency — tap any item to open the related page"
               icon={Zap}
-              className="lg:min-h-0"
+              className="mb-4 break-inside-avoid inline-block w-full"
               action={<ViewAllLink label="View all" onClick={() => navigate("/alerts")} />}
-              bodyClassName="overflow-y-auto pr-1 scrollbar-thin"
+              bodyClassName="pr-1"
             >
               <ul className="space-y-2">
                 {priorities.map((p) => {
@@ -288,15 +286,15 @@ export function AiCfoHome() {
                   );
                 })}
               </ul>
-            </SectionCard>
+          </SectionCard>
 
-            <SectionCard
+          <SectionCard
               title="Upcoming Compliance"
               subtitle="Statutory deadlines — days remaining until each filing is due"
               icon={Calendar}
-              className="lg:min-h-0"
+              className="mb-4 break-inside-avoid inline-block w-full"
               action={<ViewAllLink label="Open calendar" onClick={() => navigate("/compliance")} />}
-              bodyClassName="overflow-y-auto pr-1 scrollbar-thin"
+              bodyClassName="pr-1"
               footer={
                 <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs" onClick={() => navigate("/compliance")}>
                   Open compliance centre <ArrowRight className="size-3.5" />
@@ -326,8 +324,7 @@ export function AiCfoHome() {
                   </li>
                 ))}
               </ul>
-            </SectionCard>
-          </div>
+          </SectionCard>
         </div>
       </PageSection>
 
