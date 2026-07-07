@@ -36,15 +36,21 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:4173',
   'https://ai-dashboard-sigma-five.vercel.app',
-  ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : []),
+  ...(process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+    : []),
 ];
+console.log('[CORS] Allowed origins:', allowedOrigins);
+
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    console.warn(`[CORS] Blocked request from: ${origin}`);
     cb(new Error(`CORS: origin ${origin} not allowed`));
   },
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -83,8 +89,8 @@ app.use((_req, res) => res.status(404).json({ success: false, error: 'Route not 
 /* ── Start ──────────────────────────────────────────────────────────────── */
 async function start() {
   await connectDB();
-  app.listen(PORT, () => {
-    console.log(`[Server] Consultara Backend running on http://localhost:${PORT}`);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[Server] Consultara Backend running on http://0.0.0.0:${PORT}`);
     console.log(`[Server] API routes mounted at /api/*`);
   });
 }
