@@ -6,5 +6,5 @@ import tsconfigPaths from "vite-tsconfig-paths";
 export default defineConfig({
   plugins: [react(), tailwindcss(), tsconfigPaths()],
   server:  { host: "0.0.0.0", port: 8080, strictPort: true },
-  preview: { host: "0.0.0.0", port: 4173, strictPort: true },
+  preview: { host: "0.0.0.0", port: 4173, strictPort: true, allowedHosts: ["dashboard.consultara.co.in"] },
 });
