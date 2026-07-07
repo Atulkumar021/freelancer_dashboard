@@ -42,7 +42,7 @@ const allowedOrigins = [
 ];
 console.log('[CORS] Allowed origins:', allowedOrigins);
 
-app.use(cors({
+const corsOptions: cors.CorsOptions = {
   origin: (origin, cb) => {
     if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
     console.warn(`[CORS] Blocked request from: ${origin}`);
@@ -51,7 +51,12 @@ app.use(cors({
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization'],
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-}));
+  optionsSuccessStatus: 204,
+};
+
+// Handle preflight OPTIONS for every route BEFORE any auth middleware
+app.options('*', cors(corsOptions));
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
