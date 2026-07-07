@@ -1,5 +1,8 @@
 export const BACKEND_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
-export const COMPANY_ID  = 'cmp_001';
+
+export function getCompanyId(): string {
+  try { return localStorage.getItem('cg_company_id') ?? ''; } catch { return ''; }
+}
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -32,30 +35,52 @@ function getToken(): string | null {
   try { return localStorage.getItem('cg_token'); } catch { return null; }
 }
 
-async function get<T>(path: string): Promise<T> {
+async function apiFetch<T>(path: string, opts?: RequestInit): Promise<T> {
   const token = getToken();
   const r = await fetch(`${BACKEND_URL}${path}`, {
-    signal:  AbortSignal.timeout(8000),
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    signal: AbortSignal.timeout(8000),
+    ...opts,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(opts?.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(opts?.headers ?? {}),
+    },
   });
-  if (!r.ok) throw new Error(`${r.status}`);
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    throw new Error((d as any).error ?? `${r.status}`);
+  }
   return r.json() as Promise<T>;
 }
 
 export const api = {
-  dashboard:   () => get<any>(`/api/dashboard/${COMPANY_ID}`),
-  commentary:  () => get<any>(`/api/commentary/${COMPANY_ID}`),
-  healthScore: () => get<any>(`/api/health-score/${COMPANY_ID}`),
-  pnl:         () => get<any>(`/api/pnl/${COMPANY_ID}`),
-  sales:       () => get<any>(`/api/sales/${COMPANY_ID}`),
-  purchases:   () => get<any>(`/api/purchases/${COMPANY_ID}`),
-  cashflow:    () => get<any>(`/api/cashflow/${COMPANY_ID}`),
-  balanceSheet:() => get<any>(`/api/balance-sheet/${COMPANY_ID}`),
-  workingCapital:() => get<any>(`/api/working-capital/${COMPANY_ID}`),
-  compliance:  () => get<any>(`/api/compliance/${COMPANY_ID}`),
-  ratios:      () => get<any>(`/api/ratios/${COMPANY_ID}`),
-  payroll:     () => get<any>(`/api/payroll/${COMPANY_ID}`),
-  taxPlanning: () => get<any>(`/api/tax-planning/${COMPANY_ID}`),
-  advisory:    () => get<any>(`/api/advisory/${COMPANY_ID}`),
-  budget:      () => get<any>(`/api/budget/${COMPANY_ID}`),
+  dashboard:     () => apiFetch<any>(`/api/dashboard/${getCompanyId()}`),
+  commentary:    () => apiFetch<any>(`/api/commentary/${getCompanyId()}`),
+  healthScore:   () => apiFetch<any>(`/api/health-score/${getCompanyId()}`),
+  pnl:           () => apiFetch<any>(`/api/pnl/${getCompanyId()}`),
+  sales:         () => apiFetch<any>(`/api/sales/${getCompanyId()}`),
+  purchases:     () => apiFetch<any>(`/api/purchases/${getCompanyId()}`),
+  cashflow:      () => apiFetch<any>(`/api/cashflow/${getCompanyId()}`),
+  balanceSheet:  () => apiFetch<any>(`/api/balance-sheet/${getCompanyId()}`),
+  workingCapital:() => apiFetch<any>(`/api/working-capital/${getCompanyId()}`),
+  compliance:    () => apiFetch<any>(`/api/compliance/${getCompanyId()}`),
+  ratios:        () => apiFetch<any>(`/api/ratios/${getCompanyId()}`),
+  payroll:       () => apiFetch<any>(`/api/payroll/${getCompanyId()}`),
+  taxPlanning:   () => apiFetch<any>(`/api/tax-planning/${getCompanyId()}`),
+  advisory:      () => apiFetch<any>(`/api/advisory/${getCompanyId()}`),
+  advisoryPatch: (id: string, body: any) => apiFetch<any>(`/api/advisory/${getCompanyId()}/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  budget:        () => apiFetch<any>(`/api/budget/${getCompanyId()}`),
+};
+
+export const superadminApi = {
+  companies:   () => apiFetch<any>('/api/companies'),
+  registerOrg: (body: {
+    orgName: string; companyId: string;
+    adminName: string; adminEmail: string; adminPassword: string;
+  }) => apiFetch<any>('/api/companies/register', { method: 'POST', body: JSON.stringify(body) }),
+  updateOrg:   (companyId: string, body: { name?: string; status?: string }) =>
+    apiFetch<any>(`/api/companies/${companyId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteOrg:   (companyId: string) =>
+    apiFetch<any>(`/api/companies/${companyId}`, { method: 'DELETE' }),
+  activity:    (limit = 100) => apiFetch<any>(`/api/activity?limit=${limit}`),
 };

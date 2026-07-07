@@ -76,7 +76,14 @@ export function Ratios() {
     const lastSale           = (dash?.salesByMonth     ?? []).at(-1)?.total ?? (revenue / 12);
     const lastPurch          = (dash?.purchasesByMonth ?? []).at(-1)?.total ?? (cogs / 12);
 
-    const apiR = ratiosData ?? {};
+    const _r = ratiosData?.ratios ?? {};
+    const apiR = {
+      ..._r,
+      gpMargin:      _r.grossMarginPct,
+      npMargin:      _r.netMarginPct,
+      inventoryDays: _r.dsi,
+      ccc: (_r.dso != null && _r.dsi != null && _r.dpo != null) ? _r.dso + _r.dsi - _r.dpo : undefined,
+    };
     const D = 30;
     const currentRatio = apiR.currentRatio ?? (currentLiabilities > 0 ? currentAssets / currentLiabilities : 0);
     const quickRatio   = apiR.quickRatio   ?? (currentLiabilities > 0 ? (currentAssets - inventory) / currentLiabilities : 0);

@@ -9,6 +9,7 @@ import { ThemeProvider }         from "@/contexts/ThemeContext";
 import { ProtectedRoute }        from "@/components/ProtectedRoute";
 import { Login }                 from "@/pages/Login";
 import { Users }                 from "@/pages/Users";
+import { SuperadminDashboard }   from "@/pages/SuperadminDashboard";
 import { DashboardLayout }       from "@/components/dashboard/DashboardLayout";
 import { FiltersPanel }          from "@/components/dashboard/FiltersPanel";
 import { AiCfoHome }             from "@/components/dashboard/pages/AiCfoHome";
@@ -64,6 +65,13 @@ createRoot(document.getElementById("root")!).render(
                     <Route path="/users" element={
                       <ProtectedRoute roles={['superadmin', 'admin', 'owner']}>
                         <Users />
+                      </ProtectedRoute>
+                    } />
+
+                    {/* Superadmin: organisation management */}
+                    <Route path="/superadmin" element={
+                      <ProtectedRoute roles={['superadmin']}>
+                        <SuperadminDashboard />
                       </ProtectedRoute>
                     } />
 

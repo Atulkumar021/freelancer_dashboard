@@ -38,8 +38,8 @@ const ROLE_OPTIONS: { value: Role; label: string; system?: boolean }[] = [
   { value: 'branch', label: 'Branch' },
   { value: 'auditor', label: 'Auditor' },
   { value: 'read_only', label: 'Read-only' },
-  { value: 'admin', label: 'Admin', system: true },
-  { value: 'superadmin', label: 'Super Admin', system: true },
+  { value: 'admin', label: 'Org Admin', system: true },
+  { value: 'superadmin', label: 'Admin', system: true },
   { value: 'user', label: 'User', system: true },
 ];
 
@@ -115,7 +115,7 @@ export function Users() {
   const [error,   setError]   = useState('');
   const [access,  setAccess]  = useState<Set<string>>(seedAccess);
 
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'read_only' as Role, companyId: 'cmp_001', isActive: true });
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'read_only' as Role, companyId: '', isActive: true });
 
   useEffect(() => { loadUsers(); }, []);
 
@@ -130,11 +130,11 @@ export function Users() {
   }
 
   function openCreate() {
-    setForm({ name: '', email: '', password: '', role: 'read_only', companyId: me?.companyId ?? 'cmp_001', isActive: true });
+    setForm({ name: '', email: '', password: '', role: 'read_only', companyId: me?.companyId ?? '', isActive: true });
     setEditing(null); setError(''); setModal('create');
   }
   function openEdit(u: UserRow) {
-    setForm({ name: u.name, email: u.email, password: '', role: u.role, companyId: u.companyId ?? 'cmp_001', isActive: u.isActive });
+    setForm({ name: u.name, email: u.email, password: '', role: u.role, companyId: u.companyId ?? '', isActive: u.isActive });
     setEditing(u); setError(''); setModal('edit');
   }
 

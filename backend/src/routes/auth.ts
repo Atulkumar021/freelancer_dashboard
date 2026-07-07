@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User, { UserRole } from '../models/user';
+import ActivityLog from '../models/activityLog';
 import { requireJwt, requireRole } from '../middleware/authMiddleware';
 
 const router = Router();
@@ -42,6 +43,16 @@ router.post('/login', async (req: Request, res: Response) => {
     return;
   }
   await User.findByIdAndUpdate(user._id, { lastLoginAt: new Date() });
+
+  ActivityLog.create({
+    userId: user._id.toString(),
+    userEmail: user.email,
+    userName: user.name,
+    companyId: user.companyId ?? undefined,
+    action: 'login',
+    details: `Login`,
+    ip: req.ip,
+  }).catch(() => {});
 
   const token = signToken({
     userId: user._id, email: user.email, name: user.name,

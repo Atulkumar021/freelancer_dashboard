@@ -1,9 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import {
   Bell, Download, HelpCircle, Menu, RefreshCw,
-  Search, ChevronDown, Database, LogOut, Users, SlidersHorizontal,
-  Sun, Moon, FileText, FileSpreadsheet, FileBarChart2, ScrollText,
-  Clock, TrendingUp, ShieldCheck, Printer,
+  Search, ChevronDown, LogOut, Users, SlidersHorizontal,
+  Sun, Moon, FileText, FileBarChart2, ScrollText,
+  Clock, TrendingUp, ShieldCheck, Printer, Building2, X, Database,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -15,22 +15,11 @@ import { useConnectionStatus, ConnLevel } from "@/hooks/useConnectionStatus";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFilters } from "@/contexts/FilterContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { printCurrentPage, downloadMockReport } from "@/lib/exportUtils";
-
-const EXPORT_ITEMS = [
-  { label: "Export as PDF",        icon: FileText,        fn: () => downloadMockReport("Consultara Dashboard", "pdf") },
-  { label: "Export as Excel",      icon: FileSpreadsheet, fn: () => downloadMockReport("Consultara Dashboard", "xls") },
-  { label: "Download MIS Pack",    icon: FileBarChart2,   fn: () => downloadMockReport("MIS Pack", "pdf") },
-  { label: "Ledger Extract",       icon: ScrollText,      fn: () => downloadMockReport("Ledger Extract", "xls") },
-  { label: "Ageing Report",        icon: Clock,           fn: () => downloadMockReport("Ageing Report", "xls") },
-  { label: "Variance Report",      icon: TrendingUp,      fn: () => downloadMockReport("Variance Report", "pdf") },
-  { label: "Financial Statements", icon: FileText,        fn: () => downloadMockReport("Financial Statements", "pdf") },
-  { label: "Compliance Summary",   icon: ShieldCheck,     fn: () => downloadMockReport("Compliance Summary", "pdf") },
-];
+import { printCurrentPage } from "@/lib/exportUtils";
 const logo = "/logo.png";
 const ROLE_LABEL: Record<string, string> = {
-  superadmin: "Super Admin",
-  admin: "Admin",
+  superadmin: "Admin",
+  admin: "Org Admin",
   owner: "Owner",
   ceo: "CEO",
   cfo: "CFO",
@@ -44,7 +33,7 @@ const ROLE_LABEL: Record<string, string> = {
 
 export function TopBar({ onMenu }: { onMenu?: () => void }) {
   const navigate     = useNavigate();
-  const { user, logout, isRole } = useAuth();
+  const { user, logout, isRole, viewingCompanyId, viewingCompanyName, setViewingCompany } = useAuth();
   const { setPanelOpen, activeFilterCount, filters, setFilter } = useFilters();
   const { theme, toggle: toggleTheme } = useTheme();
   const [searchOpen,   setSearchOpen]   = useState(false);
@@ -71,6 +60,11 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
     ? user.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : 'U';
   const roleLabel = user?.role ? ROLE_LABEL[user.role] ?? user.role : '';
+
+  function exitOrgView() {
+    setViewingCompany(null);
+    navigate('/superadmin');
+  }
 
   return (
     <header className="shrink-0 w-full bg-card border-b border-border z-30">
@@ -177,6 +171,29 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
         {/* ── Spacer ───────────────────────────────────────────────────── */}
         <div className="flex-1 min-w-0" />
 
+        {/* ── Superadmin: viewing org badge + exit ─────────────────────── */}
+        {isRole('superadmin') && viewingCompanyId && (
+          <div className="hidden sm:flex items-center gap-1.5 shrink-0 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-medium">
+            <Building2 className="size-3.5 shrink-0" />
+            <span className="truncate max-w-[140px]">{viewingCompanyName ?? viewingCompanyId}</span>
+            <button
+              onClick={exitOrgView}
+              title="Exit org view — go back to Admin Panel"
+              className="ml-1 hover:text-amber-300 transition-colors"
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+        )}
+        {isRole('superadmin') && !viewingCompanyId && (
+          <button
+            onClick={() => navigate('/superadmin')}
+            className="hidden sm:flex items-center gap-1.5 h-7 px-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold hover:bg-amber-500/20 transition-colors shrink-0"
+          >
+            <Building2 className="size-3.5" /> Admin Panel
+          </button>
+        )}
+
         {/* ── Live connection status ───────────────────────────────────── */}
         <ConnectionStatus conn={conn} />
 
@@ -253,7 +270,7 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
           <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-destructive" />
         </button>
 
-        {/* Export dropdown */}
+        {/* Export / Download button — navigates to Documents page */}
         <div className="relative shrink-0" ref={exportRef}>
           <Button
             size="sm"
@@ -270,12 +287,19 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
               <p className="px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Export &amp; Download
               </p>
-              {EXPORT_ITEMS.map((it) => {
+              {[
+                { label: "P&L Report",           icon: FileBarChart2, path: "/documents" },
+                { label: "Balance Sheet",         icon: FileText,      path: "/documents" },
+                { label: "Compliance Status",     icon: ShieldCheck,   path: "/documents" },
+                { label: "Debtor / Creditor",     icon: ScrollText,    path: "/documents" },
+                { label: "Financial Ratios",      icon: TrendingUp,    path: "/documents" },
+                { label: "Advisory Actions",      icon: Clock,         path: "/documents" },
+              ].map((it) => {
                 const Icon = it.icon;
                 return (
                   <button
                     key={it.label}
-                    onClick={() => { it.fn(); setExportOpen(false); }}
+                    onClick={() => { navigate(it.path); setExportOpen(false); }}
                     className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm hover:bg-secondary transition-colors text-left"
                   >
                     <Icon className="size-4 text-muted-foreground shrink-0" /> {it.label}
@@ -315,14 +339,22 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
                 <p className="text-sm font-semibold truncate">{user?.name}</p>
                 <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
                 <span className={cn(
-                  "inline-block mt-1.5 text-[10px] font-semibold px-2 py-0.5 rounded capitalize",
-                  user?.role === 'superadmin' ? "bg-purple-50 text-purple-700"
-                  : user?.role === 'admin' || user?.role === 'owner' ? "bg-amber-50 text-amber-700"
-                  : "bg-emerald-50 text-emerald-700"
+                  "inline-block mt-1.5 text-[10px] font-semibold px-2 py-0.5 rounded",
+                  user?.role === 'superadmin' ? "bg-amber-500/15 text-amber-400"
+                  : user?.role === 'admin' || user?.role === 'owner' ? "bg-blue-500/15 text-blue-400"
+                  : "bg-emerald-500/15 text-emerald-400"
                 )}>{roleLabel}</span>
               </div>
               <div className="py-1">
-                {isRole('superadmin', 'admin', 'owner') && (
+                {isRole('superadmin') && (
+                  <button
+                    onClick={() => { setUserMenuOpen(false); navigate('/superadmin'); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2 text-sm hover:bg-secondary transition-colors text-left"
+                  >
+                    <Building2 className="size-4 text-amber-400" /> Admin Panel
+                  </button>
+                )}
+                {(isRole('admin', 'owner') || (isRole('superadmin') && !!viewingCompanyId)) && (
                   <button
                     onClick={() => { setUserMenuOpen(false); navigate('/users'); }}
                     className="w-full flex items-center gap-2.5 px-4 py-2 text-sm hover:bg-secondary transition-colors text-left"

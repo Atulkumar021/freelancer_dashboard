@@ -13,7 +13,7 @@ const MONTH_OPTIONS = [
   ...['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar']
     .map(m => ({ v: m.toLowerCase(), l: `${m} 2025` })),
 ];
-const COMPANY_OPTIONS  = [{ v: 'all', l: 'All Entities' }, { v: 'cmp_001', l: 'Main Company' }, { v: 'cmp_002', l: 'Subsidiary A' }];
+const COMPANY_OPTIONS  = [{ v: 'all', l: 'All Entities' }];
 const BRANCH_OPTIONS   = [{ v: 'all', l: 'All Branches' }, { v: 'mum', l: 'Mumbai' }, { v: 'del', l: 'Delhi' }, { v: 'blr', l: 'Bengaluru' }, { v: 'hyd', l: 'Hyderabad' }];
 const DEPT_OPTIONS     = [{ v: 'all', l: 'All Departments' }, { v: 'sales', l: 'Sales' }, { v: 'ops', l: 'Operations' }, { v: 'admin', l: 'Administration' }, { v: 'it', l: 'IT' }, { v: 'hr', l: 'HR' }];
 const CC_OPTIONS       = [{ v: 'all', l: 'All Cost Centres' }, { v: 'cc1', l: 'Corporate HQ' }, { v: 'cc2', l: 'Branch Ops' }, { v: 'cc3', l: 'R&D' }, { v: 'cc4', l: 'Marketing' }];

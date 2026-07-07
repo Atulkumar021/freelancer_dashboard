@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   RefreshCw, Check, Upload, Sun, Moon, Database, Landmark, HardDrive,
 } from "lucide-react";
@@ -7,12 +7,20 @@ import { Button } from "@/components/ui/button";
 import { PageHeader, Panel, SectionTitle, Badge } from "../Primitives";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConnectionStatus } from "@/hooks/useConnectionStatus";
+import { api, getCompanyId } from "@/lib/api";
 
 const logo = "/logo.png";
 
 const inputCls =
   "w-full h-9 px-3 rounded-lg bg-background border border-border text-sm text-foreground " +
   "focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-colors";
+
+const ROLE_LABEL: Record<string, string> = {
+  superadmin: "Super Admin", admin: "Admin", owner: "Owner", ceo: "CEO",
+  cfo: "CFO", accountant: "Accountant", dept_head: "Dept Head",
+  branch: "Branch", auditor: "Auditor", read_only: "Read-only", user: "User",
+};
 
 /* ── Small building blocks ──────────────────────────────────────────────── */
 function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
@@ -26,13 +34,10 @@ function Field({ label, children, className }: { label: string; children: React.
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
+    <button type="button" onClick={() => onChange(!checked)}
       className={cn("relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
         checked ? "bg-accent" : "bg-secondary border border-border")}
-      aria-pressed={checked}
-    >
+      aria-pressed={checked}>
       <span className={cn("inline-block size-3.5 rounded-full bg-white shadow transition-transform",
         checked ? "translate-x-[18px]" : "translate-x-[3px]")} />
     </button>
@@ -53,93 +58,89 @@ function ToggleRow({ title, desc, checked, onChange }: {
   );
 }
 
-function ConnRow({ icon: Icon, title, sub, ok }: { icon: React.ElementType; title: string; sub: string; ok: boolean }) {
+function ConnRow({ icon: Icon, title, sub, ok, loading }: {
+  icon: React.ElementType; title: string; sub: string; ok: boolean; loading?: boolean;
+}) {
   return (
     <div className="rounded-lg border border-border p-3 flex items-center gap-3">
-      <span className="size-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0"><Icon className="size-4 text-accent" /></span>
+      <span className="size-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+        <Icon className="size-4 text-accent" />
+      </span>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground truncate">{title}</p>
         <p className="text-[11px] text-muted-foreground truncate">{sub}</p>
       </div>
-      <Badge variant={ok ? "success" : "danger"}>{ok ? "Connected" : "Offline"}</Badge>
+      {loading ? (
+        <span className="text-[10px] text-muted-foreground">Checking…</span>
+      ) : (
+        <Badge variant={ok ? "success" : "danger"}>{ok ? "Connected" : "Offline"}</Badge>
+      )}
     </div>
   );
 }
 
-const errorLog = [
-  { level: 'warn',  time: 'Today, 09:18',    msg: 'Voucher #4821 skipped — missing ledger mapping' },
-  { level: 'info',  time: 'Today, 09:00',    msg: 'Sync completed — 1,284 vouchers processed' },
-  { level: 'error', time: 'Yesterday, 22:10', msg: 'Connection timeout — retried successfully' },
-];
-
-const auditLog = [
-  { user: "Saurabh Agarwal", action: "Updated notification preferences",      time: "Today, 10:42" },
-  { user: "Saurabh Agarwal", action: "Triggered manual Tally re-sync",        time: "Today, 09:18" },
-  { user: "Priya Iyer",      action: "Exported Sales & Receivables (CSV)",    time: "Yesterday, 17:55" },
-  { user: "Sanjay Mehta",    action: "Marked GSTR-3B filing as Filed",        time: "Yesterday, 14:30" },
-  { user: "System",          action: "Auto-sync completed (Tally agent)",     time: "12 Jun, 15:00" },
-  { user: "Saurabh Agarwal", action: "Changed financial year to FY 2025-26",  time: "11 Jun, 09:48" },
-];
-
-const ROLE_LABEL: Record<string, string> = {
-  superadmin: "Super Admin",
-  admin: "Admin",
-  owner: "Owner",
-  ceo: "CEO",
-  cfo: "CFO",
-  accountant: "Accountant",
-  dept_head: "Dept Head",
-  branch: "Branch",
-  auditor: "Auditor",
-  read_only: "Read-only",
-  user: "User",
-};
-
 /* ── Component ──────────────────────────────────────────────────────────── */
 export function Settings() {
   const { theme, setTheme } = useTheme();
-  const { user } = useAuth();
+  const { user, viewingCompanyName } = useAuth();
+  const conn = useConnectionStatus();
 
   const [saved, setSaved] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [lastSync, setLastSync] = useState("2 mins ago");
-
-  const [company, setCompany] = useState({
-    name: "Meridian Industries Pvt. Ltd.",
-    gstin: "27AABCM1234F1Z5",
-    address: "Plot 14, MIDC Industrial Area, Andheri East, Mumbai 400093",
-  });
-
-  const [tallyCompany, setTallyCompany] = useState("Meridian Industries 2025-26");
-  const [tallyUrl, setTallyUrl] = useState("http://localhost:9000");
-  const [syncFreq, setSyncFreq] = useState("15");
-
-  const [activeFy, setActiveFy] = useState("fy26");
-  const [fyStart, setFyStart]   = useState("apr");
-
+  const [company, setCompany] = useState({ name: "", gstin: "", address: "" });
+  const [tallyUrl,   setTallyUrl]   = useState("http://localhost:9000");
+  const [syncFreq,   setSyncFreq]   = useState("15");
+  const [activeFy,   setActiveFy]   = useState("fy26");
+  const [fyStart,    setFyStart]    = useState("apr");
   const [notif, setNotif] = useState({ overdue: true, lowCash: true, debtorRisk: true, weekly: false });
-  const [currency, setCurrency]   = useState("inr");
-  const [dateFmt, setDateFmt]     = useState("dmy");
-  const [indianNum, setIndianNum] = useState(true);
-  const [exportFmt, setExportFmt] = useState("pdf");
+  const [currency,   setCurrency]   = useState("inr");
+  const [dateFmt,    setDateFmt]    = useState("dmy");
+  const [indianNum,  setIndianNum]  = useState(true);
+  const [exportFmt,  setExportFmt]  = useState("pdf");
   const [letterhead, setLetterhead] = useState(true);
 
+  // Load real company data from dashboard API
+  const loadCompany = useCallback(async () => {
+    const cid = getCompanyId();
+    if (!cid) {
+      // Superadmin / no company — use viewingCompanyName if available
+      if (viewingCompanyName) setCompany(c => ({ ...c, name: viewingCompanyName }));
+      return;
+    }
+    try {
+      const d = await api.dashboard();
+      const c = d?.company ?? {};
+      setCompany({
+        name:    c.name    ?? viewingCompanyName ?? "",
+        gstin:   c.gstin   ?? "",
+        address: c.address ?? "",
+      });
+    } catch {
+      if (viewingCompanyName) setCompany(c => ({ ...c, name: viewingCompanyName }));
+    }
+  }, [viewingCompanyName]);
+
+  useEffect(() => { loadCompany(); }, [loadCompany]);
+
   const save = () => { setSaved(true); setTimeout(() => setSaved(false), 2500); };
-  const resync = () => { setSyncing(true); setTimeout(() => { setSyncing(false); setLastSync("just now"); }, 1500); };
+
+  const tallyOk    = conn.tally   === 'connected' || conn.tally   === 'degraded';
+  const backendOk  = conn.backend === 'connected' || conn.backend === 'degraded';
+  const tallyLabel = conn.tally === 'connected' ? (conn.lastSync ? `Last sync: ${conn.lastSync}` : 'Connected')
+                   : conn.tally === 'degraded'  ? (conn.lastSync ? `Sync ${conn.lastSync}` : 'Degraded')
+                   : 'Not connected';
 
   return (
     <div className="space-y-6">
 
-      {/* ── Header ───────────────────────────────────────────────────────── */}
       <PageHeader
         title="Settings"
         subtitle="Company profile · Data source · Preferences"
         className="mb-2 pb-3"
         actions={
-        <div className="flex items-center gap-3 flex-wrap">
-          {saved && <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600"><Check className="size-4" /> All changes saved</span>}
-          <Button className="h-8 gap-1.5 text-xs bg-accent text-accent-foreground hover:bg-accent/90" onClick={save}>Save Changes</Button>
-        </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            {saved && <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600"><Check className="size-4" /> All changes saved</span>}
+            <Button className="h-8 gap-1.5 text-xs bg-accent text-accent-foreground hover:bg-accent/90" onClick={save}>Save Changes</Button>
+          </div>
         }
       />
 
@@ -148,36 +149,54 @@ export function Settings() {
         <SectionTitle title="Company Profile" subtitle="Identity used across reports and exports" />
         <div className="flex items-start gap-4 mb-5">
           <div className="size-16 rounded-xl bg-white border border-border flex items-center justify-center shrink-0 p-2">
-            <img src={logo} alt="Company logo" className="size-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            <img src={logo} alt="Company logo" className="size-full object-contain"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
           </div>
           <div>
             <p className="text-sm font-medium text-foreground">Company Logo</p>
             <p className="text-[11px] text-muted-foreground mb-2">PNG or SVG, up to 1 MB. Appears on the sidebar and reports.</p>
-            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs"><Upload className="size-3.5" /> Upload Logo</Button>
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+              <Upload className="size-3.5" /> Upload Logo
+            </Button>
           </div>
         </div>
         <div className="grid sm:grid-cols-2 gap-4">
-          <Field label="Company Name"><input className={inputCls} value={company.name} onChange={(e) => setCompany({ ...company, name: e.target.value })} /></Field>
-          <Field label="GSTIN"><input className={inputCls} value={company.gstin} onChange={(e) => setCompany({ ...company, gstin: e.target.value })} /></Field>
-          <Field label="Registered Address" className="sm:col-span-2"><input className={inputCls} value={company.address} onChange={(e) => setCompany({ ...company, address: e.target.value })} /></Field>
+          <Field label="Company Name">
+            <input className={inputCls} value={company.name} placeholder="Company name"
+              onChange={(e) => setCompany({ ...company, name: e.target.value })} />
+          </Field>
+          <Field label="GSTIN">
+            <input className={inputCls} value={company.gstin} placeholder="e.g. 27AABC…"
+              onChange={(e) => setCompany({ ...company, gstin: e.target.value })} />
+          </Field>
+          <Field label="Registered Address" className="sm:col-span-2">
+            <input className={inputCls} value={company.address} placeholder="Registered address"
+              onChange={(e) => setCompany({ ...company, address: e.target.value })} />
+          </Field>
         </div>
+        {!company.name && (
+          <p className="mt-3 text-[11px] text-muted-foreground">
+            Company details will auto-populate after the first Tally sync.
+          </p>
+        )}
       </Panel>
 
       {/* ── Data Source Settings ─────────────────────────────────────────── */}
       <Panel>
         <SectionTitle
           title="Data Source Settings"
-          subtitle="Accounting software, bank and document storage connections"
+          subtitle="Accounting software connection and sync configuration"
           action={
-            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={resync} disabled={syncing}>
-              <RefreshCw className={cn("size-3.5", syncing && "animate-spin")} /> {syncing ? "Refreshing…" : "Manual Refresh"}
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={conn.refresh} disabled={conn.checking}>
+              <RefreshCw className={cn("size-3.5", conn.checking && "animate-spin")} />
+              {conn.checking ? "Checking…" : "Refresh Status"}
             </Button>
           }
         />
         <div className="grid sm:grid-cols-3 gap-3 mb-5">
-          <ConnRow icon={Database}  title="Tally Prime"   sub={`Last sync: ${lastSync}`} ok />
-          <ConnRow icon={Landmark}  title="HDFC Bank"     sub="Bank feed · 2 accounts"  ok />
-          <ConnRow icon={HardDrive} title="Google Drive"  sub="Document storage"        ok />
+          <ConnRow icon={Database}  title="Tally Prime"  sub={tallyLabel}              ok={tallyOk}   loading={conn.tally === 'loading'} />
+          <ConnRow icon={Landmark}  title="Backend API"  sub="CG Financial backend"    ok={backendOk} loading={conn.backend === 'loading'} />
+          <ConnRow icon={HardDrive} title="Storage"      sub="Local Tally agent cache" ok={backendOk} loading={conn.backend === 'loading'} />
         </div>
         <div className="grid sm:grid-cols-2 gap-4 mb-5">
           <Field label="Connected Accounting Software">
@@ -187,8 +206,9 @@ export function Settings() {
               <option value="zoho">Zoho Books</option>
             </select>
           </Field>
-          <Field label="Tally Company Name"><input className={inputCls} value={tallyCompany} onChange={(e) => setTallyCompany(e.target.value)} /></Field>
-          <Field label="Tally Agent URL"><input className={inputCls} value={tallyUrl} onChange={(e) => setTallyUrl(e.target.value)} /></Field>
+          <Field label="Tally Agent URL">
+            <input className={inputCls} value={tallyUrl} onChange={(e) => setTallyUrl(e.target.value)} />
+          </Field>
           <Field label="Sync Frequency">
             <select className={inputCls} value={syncFreq} onChange={(e) => setSyncFreq(e.target.value)}>
               <option value="5">Every 5 minutes</option>
@@ -199,17 +219,28 @@ export function Settings() {
             </select>
           </Field>
         </div>
+
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">Sync Error Log</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">Connection Status</p>
           <div className="rounded-lg border border-border divide-y divide-border/60">
-            {errorLog.map((e, i) => (
-              <div key={i} className="flex items-center gap-2.5 px-3 py-2">
-                <span className={cn("size-1.5 rounded-full shrink-0",
-                  e.level === 'error' ? "bg-red-500" : e.level === 'warn' ? "bg-amber-500" : "bg-emerald-500")} />
-                <span className="text-xs text-foreground flex-1 min-w-0 truncate">{e.msg}</span>
-                <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">{e.time}</span>
-              </div>
-            ))}
+            <div className="flex items-center gap-2.5 px-3 py-2">
+              <span className={cn("size-1.5 rounded-full shrink-0",
+                conn.backend === 'connected' ? "bg-emerald-500" :
+                conn.backend === 'degraded'  ? "bg-amber-500"   : "bg-red-500")} />
+              <span className="text-xs text-foreground flex-1">
+                Backend API — {conn.backend === 'connected' ? 'Online' : conn.backend === 'degraded' ? 'Degraded' : 'Offline'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2.5 px-3 py-2">
+              <span className={cn("size-1.5 rounded-full shrink-0",
+                conn.tally === 'connected' ? "bg-emerald-500" :
+                conn.tally === 'degraded'  ? "bg-amber-500"   : "bg-muted-foreground")} />
+              <span className="text-xs text-foreground flex-1">
+                Tally — {conn.tally === 'connected' ? `Connected · ${conn.lastSync ?? '—'}` :
+                          conn.tally === 'degraded'  ? `Degraded · last sync ${conn.lastSync ?? '—'}` :
+                          'Not connected · Start Tally agent to sync data'}
+              </span>
+            </div>
           </div>
         </div>
       </Panel>
@@ -304,31 +335,27 @@ export function Settings() {
         </Panel>
       </div>
 
-      {/* ── Audit Log ────────────────────────────────────────────────────── */}
+      {/* ── Session Info ─────────────────────────────────────────────────── */}
       <Panel>
-        <SectionTitle title="Audit Log" subtitle="Recent actions taken in the system" />
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">
-                <th className="text-left font-semibold py-2.5 pr-2">User</th>
-                <th className="text-left font-semibold py-2.5 px-2">Action</th>
-                <th className="text-right font-semibold py-2.5 pl-2">When</th>
-              </tr>
-            </thead>
-            <tbody>
-              {auditLog.map((a, i) => (
-                <tr key={i} className="border-b border-border/60 last:border-0 hover:bg-secondary/50 transition-colors">
-                  <td className="py-2.5 pr-2 font-medium text-foreground whitespace-nowrap">{a.user}</td>
-                  <td className="py-2.5 px-2 text-muted-foreground">{a.action}</td>
-                  <td className="py-2.5 pl-2 text-right text-xs tabular-nums text-muted-foreground whitespace-nowrap">{a.time}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <SectionTitle title="Session & Access" subtitle="Current user and role" />
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="rounded-lg border border-border p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Signed In As</p>
+            <p className="text-sm font-medium text-foreground">{user?.name ?? user?.email ?? '—'}</p>
+            <p className="text-[11px] text-muted-foreground">{user?.email ?? ''}</p>
+          </div>
+          <div className="rounded-lg border border-border p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Role</p>
+            <p className="text-sm font-medium text-foreground">{user?.role ? (ROLE_LABEL[user.role] ?? user.role) : '—'}</p>
+          </div>
+          <div className="rounded-lg border border-border p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Organisation</p>
+            <p className="text-sm font-medium text-foreground">{company.name || viewingCompanyName || '—'}</p>
+            {company.gstin && <p className="text-[11px] text-muted-foreground">GSTIN: {company.gstin}</p>}
+          </div>
         </div>
-        <p className="text-[11px] text-muted-foreground mt-3">Showing the last {auditLog.length} actions{user?.role ? ` · signed in as ${ROLE_LABEL[user.role] ?? user.role}` : ""}.</p>
       </Panel>
+
     </div>
   );
 }

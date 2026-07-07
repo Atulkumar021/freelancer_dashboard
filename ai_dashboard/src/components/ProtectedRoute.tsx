@@ -7,7 +7,7 @@ interface Props {
 }
 
 export function ProtectedRoute({ children, roles }: Props) {
-  const { user, loading } = useAuth();
+  const { user, loading, viewingCompanyId } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -24,6 +24,16 @@ export function ProtectedRoute({ children, roles }: Props) {
 
   if (roles && !roles.includes(user.role)) {
     return <Navigate to="/" replace />;
+  }
+
+  // Superadmin with no org selected → go to Admin Panel (only at top-level wrapper)
+  if (
+    !roles &&
+    user.role === 'superadmin' &&
+    !viewingCompanyId &&
+    location.pathname !== '/superadmin'
+  ) {
+    return <Navigate to="/superadmin" replace />;
   }
 
   return <>{children}</>;

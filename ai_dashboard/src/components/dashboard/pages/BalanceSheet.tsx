@@ -9,19 +9,6 @@ import { exportToCSV } from "@/lib/exportUtils";
 import { api, fmt } from "@/lib/api";
 import { AnimatedValue } from "../Animated";
 
-/* Fallback composition (used when live summary has no values) */
-const ASSET_MIX_FALLBACK = [
-  { name: "Fixed Assets", value: 40, color: "#c9a84c" },
-  { name: "Inventory",    value: 20, color: "#3b82f6" },
-  { name: "Receivables",  value: 25, color: "#a6905f" },
-  { name: "Cash & Bank",  value: 15, color: "#9ca3af" },
-];
-const LIAB_MIX_FALLBACK = [
-  { name: "Equity & Reserves",   value: 48, color: "#c9a84c" },
-  { name: "Long-term Debt",      value: 22, color: "#ef4444" },
-  { name: "Current Liabilities", value: 18, color: "#f59e0b" },
-  { name: "Other Liabilities",   value: 12, color: "#9ca3af" },
-];
 
 /* ── KPI tile ───────────────────────────────────────────────────────────── */
 function KpiTile({ label, value, icon: Icon, hint, tone, onClick }: {
@@ -146,8 +133,8 @@ export function BalanceSheet() {
     { name: "Long-term Debt",      value: s.nonCurrentLiabilities ?? 0, color: "#ef4444" },
     { name: "Current Liabilities", value: s.currentLiabilities    ?? 0, color: "#f59e0b" },
   ];
-  const assetMix = assetMixRaw.some((d) => d.value > 0) ? assetMixRaw.filter((d) => d.value > 0) : ASSET_MIX_FALLBACK;
-  const liabMix  = liabMixRaw.some((d) => d.value > 0)  ? liabMixRaw.filter((d) => d.value > 0)  : LIAB_MIX_FALLBACK;
+  const assetMix = assetMixRaw.filter((d) => d.value > 0);
+  const liabMix  = liabMixRaw.filter((d) => d.value > 0);
 
   const handleExportCSV = () => {
     const allRows = [

@@ -1,53 +1,25 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   AlertTriangle, AlertCircle, Bell, CheckCircle2, Clock, Download,
-  Info, ShieldCheck, User, X,
+  Info, Loader2, PlugZap, ShieldCheck, User, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PageHeader, Panel, SectionTitle, Badge } from "../Primitives";
-import { BarsCompare, DonutChart } from "../Charts";
+import { DonutChart } from "../Charts";
 import { exportToCSV } from "@/lib/exportUtils";
 import { AnimatedValue } from "../Animated";
+import { api, fmt, getCompanyId } from "@/lib/api";
 
-/* ── Data ─────────────────────────────────────────────────────────────────── */
+/* ── Types ──────────────────────────────────────────────────────────────── */
 type Sev = "high" | "med" | "low";
 type Status = "open" | "in-progress" | "resolved";
 
 interface ActionItem {
   id: string; category: string; sev: Sev; text: string; meta: string;
   owner: string; dueDate: string; status: Status;
+  advisoryId?: string; // set if from advisory API (enables backend update)
 }
-
-const allItems: ActionItem[] = [
-  { id: 'a1',  category: 'Financial',   sev: 'high', text: 'Cash balance projected below ₹3 Cr threshold by Jan 28',    meta: 'Forecast', owner: 'CFO',          dueDate: '28 Jan', status: 'open' },
-  { id: 'a2',  category: 'Financial',   sev: 'med',  text: 'Marketing expense above budget by 18.4%',                   meta: 'Variance', owner: 'Head Finance', dueDate: '31 Oct', status: 'in-progress' },
-  { id: 'a3',  category: 'Financial',   sev: 'med',  text: 'Revenue 4.2% below budget for September',                   meta: 'Budget',   owner: 'Sales Head',   dueDate: '05 Nov', status: 'open' },
-  { id: 'a4',  category: 'Receivables', sev: 'high', text: '₹38.4 L receivable overdue beyond 90 days (12 customers)',  meta: 'Ageing',   owner: 'Collections',  dueDate: '20 Oct', status: 'open' },
-  { id: 'a5',  category: 'Receivables', sev: 'high', text: 'Customer concentration: top 5 = 47% of revenue',           meta: 'Risk',     owner: 'CFO',          dueDate: '30 Nov', status: 'open' },
-  { id: 'a6',  category: 'Receivables', sev: 'med',  text: 'Vendor payments of ₹64.2 L due in next 15 days',           meta: 'Payables', owner: 'AP Team',      dueDate: '01 Nov', status: 'in-progress' },
-  { id: 'a7',  category: 'Compliance',  sev: 'high', text: 'GSTR-3B filing due in 4 days',                              meta: '20 Oct',   owner: 'Tax Manager',  dueDate: '20 Oct', status: 'open' },
-  { id: 'a8',  category: 'Compliance',  sev: 'med',  text: 'PF/ESI payment due in 11 days',                             meta: '15 Nov',   owner: 'HR / Finance', dueDate: '15 Nov', status: 'open' },
-  { id: 'a9',  category: 'Compliance',  sev: 'low',  text: 'Advance Tax Q3 due in 56 days',                             meta: '15 Dec',   owner: 'Tax Manager',  dueDate: '15 Dec', status: 'open' },
-  { id: 'a10', category: 'Operational', sev: 'med',  text: '3 bank reconciliations pending — HDFC Current',            meta: '₹4.8 L',   owner: 'Accounts',     dueDate: '31 Oct', status: 'in-progress' },
-  { id: 'a11', category: 'Operational', sev: 'low',  text: 'Suspense ledger balance ₹1.2 L unmapped',                  meta: 'Review',   owner: 'Accounts',     dueDate: '31 Oct', status: 'open' },
-  { id: 'a12', category: 'Financial',   sev: 'low',  text: 'FD of ₹80 L maturing in 15 days — renewal decision needed', meta: 'Banking', owner: 'CFO',          dueDate: '14 Nov', status: 'resolved' },
-];
-
-const months = ['May','Jun','Jul','Aug','Sep','Oct'];
-const alertTrendData = months.map((m, i) => ({
-  name: m, High: 3 + (i === 4 ? 1 : 0), Medium: 4 + (i % 3 === 0 ? 1 : 0),
-}));
-
-const categoryMix = [
-  { name: 'Financial',   value: 33, color: '#c9a84c' },
-  { name: 'Receivables', value: 27, color: '#ef4444' },
-  { name: 'Compliance',  value: 27, color: '#f59e0b' },
-  { name: 'Operational', value: 13, color: '#9ca3af' },
-];
-
-/* ── Helpers ──────────────────────────────────────────────────────────────── */
-const sevColor = (s: Sev) => s === "high" ? "danger" : s === "med" ? "warning" : "default";
 
 const sevTile = (s: Sev) =>
   s === 'high' ? 'bg-red-500/10 text-red-500' :
@@ -59,22 +31,80 @@ const statusStyle = (s: Status) =>
   s === 'in-progress' ? 'bg-blue-500/10 text-blue-600' :
   'bg-secondary text-muted-foreground';
 
-const statusLabel = (s: Status) => s === 'resolved' ? 'Resolved' : s === 'in-progress' ? 'In Progress' : 'Open';
+const statusLabel = (s: Status) =>
+  s === 'resolved' ? 'Resolved' : s === 'in-progress' ? 'In Progress' : 'Open';
+
+const sevColor = (s: Sev) => s === "high" ? "danger" : s === "med" ? "warning" : "default";
 
 const groups = [
-  { key: 'Financial',   title: 'Financial Alerts',    icon: AlertTriangle },
-  { key: 'Receivables', title: 'Receivable & Payable', icon: Clock },
-  { key: 'Compliance',  title: 'Compliance',           icon: ShieldCheck },
-  { key: 'Operational', title: 'Operational',          icon: Info },
+  { key: 'Compliance',  title: 'Compliance Alerts',     icon: ShieldCheck },
+  { key: 'Financial',   title: 'Financial Alerts',       icon: AlertTriangle },
+  { key: 'Receivables', title: 'Receivables & Payables', icon: Clock },
+  { key: 'Operational', title: 'Operational',            icon: Info },
 ];
 
-/* ── KPI tile ───────────────────────────────────────────────────────────── */
-function KpiTile({ label, value, icon: Icon, delta, good, hint }: {
-  label: string; value: string; icon: React.ElementType; delta: number; good: boolean; hint?: string;
+function mapPriority(p: string): Sev {
+  if (p === 'High'   || p === 'Critical') return 'high';
+  if (p === 'Medium' || p === 'Normal')   return 'med';
+  return 'low';
+}
+function mapStatus(s: string): Status {
+  if (s === 'Done' || s === 'Resolved' || s === 'Closed') return 'resolved';
+  if (s === 'In Progress') return 'in-progress';
+  return 'open';
+}
+function fmtDue(d: string): string {
+  if (!d) return '—';
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return d;
+  return dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
+function buildAutoAlerts(dash: any, comp: any): ActionItem[] {
+  const items: ActionItem[] = [];
+  const compAlerts = dash?.complianceAlerts ?? [];
+  const emis       = dash?.upcomingEMIs     ?? [];
+  const s          = dash?.summary          ?? {};
+  const filings    = comp?.filings          ?? [];
+
+  filings.filter((f: any) => f.status === 'overdue').forEach((f: any) => {
+    items.push({ id: `auto-comp-${f._id}`, category: 'Compliance', sev: 'high',
+      text: `${f.name} is overdue — file immediately to avoid penalties.`,
+      meta: `Due ${fmtDue(f.dueDate)}`, owner: 'Tax Manager', dueDate: fmtDue(f.dueDate), status: 'open' });
+  });
+  filings.filter((f: any) => f.status === 'due-soon').forEach((f: any) => {
+    const d = Math.ceil((new Date(f.dueDate).getTime() - Date.now()) / 86_400_000);
+    items.push({ id: `auto-due-${f._id}`, category: 'Compliance', sev: 'med',
+      text: `${f.name} due in ${d} day${d !== 1 ? 's' : ''}.`,
+      meta: fmtDue(f.dueDate), owner: 'Tax Manager', dueDate: fmtDue(f.dueDate), status: 'open' });
+  });
+
+  const rec = s.totalReceivables ?? 0;
+  if (rec > 10_00_000) items.push({ id: 'auto-rec', category: 'Receivables', sev: rec > 50_00_000 ? 'high' : 'med',
+    text: `${fmt(rec)} in outstanding receivables from ${s.debtorCount ?? 0} debtors.`,
+    meta: 'Collections', owner: 'Collections', dueDate: '—', status: 'open' });
+
+  const pay = s.totalPayables ?? 0;
+  if (pay > 10_00_000) items.push({ id: 'auto-pay', category: 'Receivables', sev: 'med',
+    text: `${fmt(pay)} in vendor payables due — review payment schedule.`,
+    meta: 'Payables', owner: 'AP Team', dueDate: '—', status: 'open' });
+
+  emis.slice(0, 2).forEach((e: any) => {
+    const d = Math.ceil((new Date(e.dueDate).getTime() - Date.now()) / 86_400_000);
+    items.push({ id: `auto-emi-${e._id}`, category: 'Financial', sev: d <= 3 ? 'high' : 'med',
+      text: `${e.lenderName ?? 'Loan'} EMI of ${fmt(e.emiAmount)} due in ${d} day${d !== 1 ? 's' : ''}.`,
+      meta: 'Loan EMI', owner: 'CFO', dueDate: fmtDue(e.dueDate), status: 'open' });
+  });
+
+  return items;
+}
+
+/* ── KPI tile ──────────────────────────────────────────────────────────── */
+function KpiTile({ label, value, icon: Icon, hint }: {
+  label: string; value: string; icon: React.ElementType; hint?: string;
 }) {
-  const up = delta >= 0;
   return (
-    <div className="rounded-lg border border-border bg-card p-3.5 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant">
+    <div className="rounded-lg border border-border bg-card p-3.5 shadow-card hover:border-accent/40 hover:shadow-elegant transition-all">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-medium text-muted-foreground leading-snug">{label}</p>
@@ -86,35 +116,72 @@ function KpiTile({ label, value, icon: Icon, delta, good, hint }: {
           <Icon className="size-4 text-accent" />
         </span>
       </div>
-      <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5">
-        <span className="text-[11px] text-muted-foreground">Change</span>
-        {delta !== 0 && (
-          <span className={cn("text-xs font-semibold tabular-nums", good ? "text-emerald-600" : "text-red-500")}>
-            {up ? "+" : ""}{delta}%
-          </span>
-        )}
-        {delta === 0 && <span className="text-xs font-semibold text-muted-foreground">Flat</span>}
-      </div>
-      {hint && <p className="mt-2 text-[11px] text-muted-foreground leading-snug">{hint}</p>}
+      {hint && <p className="mt-3 pt-2.5 border-t border-border/60 text-[11px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }
 
-/* ── Component ────────────────────────────────────────────────────────────── */
+function Skeleton({ className }: { className?: string }) {
+  return <div className={cn("animate-pulse rounded bg-secondary/70", className)} />;
+}
+
+/* ── Component ─────────────────────────────────────────────────────────── */
 export function Alerts() {
   const [activeTab, setActiveTab] = useState<'overview' | 'tracker'>('overview');
   const [statusFilter, setStatusFilter] = useState<'all' | Status>('all');
-  const [resolvedIds, setResolvedIds] = useState<Set<string>>(new Set(['a12']));
+  const [items, setItems] = useState<ActionItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [resolvedIds, setResolvedIds] = useState<Set<string>>(new Set());
 
-  const toggleResolved = (id: string) =>
+  const load = useCallback(async () => {
+    if (!getCompanyId()) { setLoading(false); return; }
+    setLoading(true);
+    const [adv, dash, comp] = await Promise.allSettled([
+      api.advisory(),
+      api.dashboard(),
+      api.compliance(),
+    ]);
+    const advisory  = adv.status  === 'fulfilled' ? adv.value  : null;
+    const dashData  = dash.status === 'fulfilled' ? dash.value : null;
+    const compData  = comp.status === 'fulfilled' ? comp.value : null;
+
+    const advisoryItems: ActionItem[] = (advisory?.actions ?? []).map((a: any) => ({
+      id:         a._id ?? a.actionId,
+      advisoryId: a._id ?? a.actionId,
+      category:   a.category   ?? 'Operational',
+      sev:        mapPriority(a.priority),
+      text:       a.title,
+      meta:       a.category   ?? '',
+      owner:      a.owner      ?? '—',
+      dueDate:    fmtDue(a.dueDate),
+      status:     mapStatus(a.status),
+    }));
+
+    const autoItems = buildAutoAlerts(dashData, compData);
+    const combined  = [...advisoryItems, ...autoItems];
+    setItems(combined);
+    const alreadyResolved = new Set(combined.filter(i => i.status === 'resolved').map(i => i.id));
+    setResolvedIds(alreadyResolved);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const toggleResolved = async (id: string) => {
     setResolvedIds(prev => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+    const item = items.find(i => i.id === id);
+    if (item?.advisoryId) {
+      const newStatus = resolvedIds.has(id) ? 'Open' : 'Done';
+      await api.advisoryPatch(item.advisoryId, { status: newStatus }).catch(() => {});
+    }
+  };
 
-  const liveItems = allItems.map(i => ({
-    ...i, status: resolvedIds.has(i.id) ? 'resolved' as Status : i.status,
+  const liveItems: ActionItem[] = items.map(i => ({
+    ...i, status: resolvedIds.has(i.id) ? 'resolved' : i.status,
   }));
 
   const openCount   = liveItems.filter(i => i.status === 'open').length;
@@ -124,124 +191,152 @@ export function Alerts() {
 
   const filtered = statusFilter === 'all' ? liveItems : liveItems.filter(i => i.status === statusFilter);
 
+  const categoryMix = (() => {
+    const colors: Record<string, string> = { Compliance: '#f59e0b', Financial: '#c9a84c', Receivables: '#ef4444', Operational: '#9ca3af' };
+    const counts: Record<string, number> = {};
+    liveItems.filter(i => i.status !== 'resolved').forEach(i => {
+      counts[i.category] = (counts[i.category] ?? 0) + 1;
+    });
+    const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+    return Object.entries(counts).map(([name, count]) => ({
+      name, value: Math.round((count / total) * 100), color: colors[name] ?? '#6b7280',
+    }));
+  })();
+
   const handleExport = () => exportToCSV(
-    ['ID','Category','Severity','Alert','Due Date','Owner','Status'],
-    liveItems.map(i => [i.id, i.category, i.sev, i.text, i.dueDate, i.owner, i.status]),
+    ['Category', 'Severity', 'Alert', 'Owner', 'Due Date', 'Status'],
+    liveItems.map(i => [i.category, i.sev, i.text, i.owner, i.dueDate, statusLabel(i.status)]),
     'alerts-tracker.csv',
   );
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-64" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-24 rounded-lg" />)}</div>
+        <Skeleton className="h-64 rounded-xl" />
+      </div>
+    );
+  }
+
+  if (!getCompanyId() || (items.length === 0 && !loading)) {
+    return (
+      <>
+        <PageHeader title="Alerts & Action Tracker" subtitle="Owners · Due dates · Resolution status" className="mb-2 pb-3" />
+        <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
+          <div className="size-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+            <ShieldCheck className="size-8 text-emerald-500/50" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold">All clear</h2>
+            <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
+              No alerts or action items at this time. Sync Tally data to generate compliance and financial alerts.
+            </p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
     <div className="space-y-6">
-
-      {/* ── Header ───────────────────────────────────────────────────────── */}
       <PageHeader
         title="Alerts & Action Tracker"
-        subtitle="Owners · Due dates · Resolution status"
+        subtitle="Live alerts from compliance, receivables, EMIs and advisory actions"
         className="mb-2 pb-3"
         actions={
-        <>
-          <Button variant="outline" className="h-8 gap-1.5 text-xs" onClick={handleExport}>
-            <Download className="size-3.5" /> Export
-          </Button>
-          <div className="flex gap-1 p-1 rounded-lg bg-secondary border border-border">
-            {(['overview','tracker'] as const).map(t => (
-              <button
-                key={t}
-                onClick={() => setActiveTab(t)}
-                className={cn("px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
-                  activeTab === t ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground')}
-              >
-                {t === 'overview' ? 'Overview' : 'Action Tracker'}
-              </button>
-            ))}
-          </div>
-        </>
+          <>
+            <Button variant="outline" className="h-8 gap-1.5 text-xs" onClick={handleExport}>
+              <Download className="size-3.5" /> Export
+            </Button>
+            <div className="flex gap-1 p-1 rounded-lg bg-secondary border border-border">
+              {(['overview','tracker'] as const).map(t => (
+                <button key={t} onClick={() => setActiveTab(t)}
+                  className={cn("px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                    activeTab === t ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground')}>
+                  {t === 'overview' ? 'Overview' : 'Action Tracker'}
+                </button>
+              ))}
+            </div>
+          </>
         }
       />
 
-      {/* ── KPI row ──────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiTile label="Open Alerts"     value={String(openCount)}   icon={Bell}          delta={-14.3} good      hint="14 last month" />
-        <KpiTile label="High Severity"   value={String(highCount)}   icon={AlertTriangle} delta={0}     good={false} hint="Needs action now" />
-        <KpiTile label="Medium Severity" value={String(medCount)}    icon={AlertCircle}   delta={-20}   good      hint="5 last month" />
-        <KpiTile label="Resolved (MTD)"  value={String(resolvedCnt)} icon={CheckCircle2}  delta={0}     good      hint="Closed this month" />
+        <KpiTile label="Open Alerts"     value={String(openCount)}   icon={Bell}          hint="Currently unresolved" />
+        <KpiTile label="High Severity"   value={String(highCount)}   icon={AlertTriangle} hint="Needs immediate action" />
+        <KpiTile label="Medium Severity" value={String(medCount)}    icon={AlertCircle}   hint="Monitor closely" />
+        <KpiTile label="Resolved"        value={String(resolvedCnt)} icon={CheckCircle2}  hint="Closed this session" />
       </div>
 
       {activeTab === 'overview' ? (
         <>
-          {/* Charts */}
           <div className="grid lg:grid-cols-3 gap-5">
             <Panel className="lg:col-span-2">
-              <SectionTitle title="Alert Trend" subtitle="High and medium severity — last 6 months" />
-              <BarsCompare
-                data={alertTrendData}
-                series={[
-                  { key: 'High',   color: '#ef4444', label: 'High' },
-                  { key: 'Medium', color: '#f59e0b', label: 'Medium' },
-                ]}
-                height={240}
-              />
-            </Panel>
-            <Panel>
-              <SectionTitle title="By Category" subtitle="Open alerts distribution" />
-              <DonutChart data={categoryMix} height={200} />
-              <div className="mt-3 space-y-1.5">
-                {categoryMix.map(c => (
-                  <div key={c.name} className="flex items-center justify-between text-xs">
-                    <span className="flex items-center gap-2 text-muted-foreground">
-                      <span className="size-2.5 rounded-sm shrink-0" style={{ background: c.color }} />
-                      {c.name}
-                    </span>
-                    <span className="font-semibold tabular-nums text-foreground">{c.value}%</span>
-                  </div>
-                ))}
+              <SectionTitle title="Open Alerts by Category" subtitle="All unresolved items grouped by category" />
+              <div className="grid md:grid-cols-2 gap-5 mt-4">
+                {groups.map((g) => {
+                  const groupItems = liveItems.filter(i => i.category === g.key && i.status !== 'resolved');
+                  return (
+                    <div key={g.key}>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                        {g.title} <span className="text-accent ml-1">{groupItems.length}</span>
+                      </p>
+                      <ul className="space-y-2">
+                        {groupItems.length === 0 && (
+                          <li className="text-sm text-muted-foreground py-2 text-center bg-secondary/30 rounded-lg">All clear</li>
+                        )}
+                        {groupItems.map((it) => (
+                          <li key={it.id} className="rounded-lg border border-border p-3 flex gap-3">
+                            <div className={cn("mt-0.5 size-7 rounded-lg flex items-center justify-center shrink-0", sevTile(it.sev))}>
+                              <g.icon className="size-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm text-foreground leading-snug">{it.text}</div>
+                              <div className="flex items-center gap-2 mt-1 flex-wrap text-[11px] text-muted-foreground">
+                                {it.meta && <><span>{it.meta}</span><span>·</span></>}
+                                <span className="flex items-center gap-1"><User className="size-3" /> {it.owner}</span>
+                                {it.dueDate !== '—' && <><span>·</span><span className="flex items-center gap-1"><Clock className="size-3" /> {it.dueDate}</span></>}
+                              </div>
+                            </div>
+                            <button onClick={() => toggleResolved(it.id)}
+                              className="shrink-0 size-6 flex items-center justify-center rounded-md text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-600 transition-colors"
+                              title="Mark resolved">
+                              <CheckCircle2 className="size-4" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
               </div>
             </Panel>
-          </div>
 
-          {/* Alert cards by category */}
-          <div className="grid md:grid-cols-2 gap-5">
-            {groups.map((g) => {
-              const items = liveItems.filter(i => i.category === g.key && i.status !== 'resolved');
-              return (
-                <Panel key={g.key}>
-                  <SectionTitle title={g.title} action={<span className="text-xs text-muted-foreground">{items.length} open</span>} />
-                  <ul className="space-y-2.5">
-                    {items.map((it) => (
-                      <li key={it.id} className="rounded-lg border border-border p-3 flex gap-3">
-                        <div className={cn("mt-0.5 size-7 rounded-lg flex items-center justify-center shrink-0", sevTile(it.sev))}>
-                          <g.icon className="size-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm text-foreground">{it.text}</div>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap text-[11px] text-muted-foreground">
-                            <span>{it.meta}</span>
-                            <span>·</span>
-                            <span className="flex items-center gap-1"><User className="size-3" /> {it.owner}</span>
-                            <span>·</span>
-                            <span className="flex items-center gap-1"><Clock className="size-3" /> {it.dueDate}</span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => toggleResolved(it.id)}
-                          className="shrink-0 size-6 flex items-center justify-center rounded-md text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-600 transition-colors"
-                          title="Mark resolved"
-                        >
-                          <CheckCircle2 className="size-4" />
-                        </button>
-                      </li>
+            <Panel>
+              <SectionTitle title="Alert Mix" subtitle="Open alerts by category" />
+              {categoryMix.length > 0 ? (
+                <>
+                  <DonutChart data={categoryMix} height={180} />
+                  <div className="mt-3 space-y-1.5">
+                    {categoryMix.map(c => (
+                      <div key={c.name} className="flex items-center justify-between text-xs">
+                        <span className="flex items-center gap-2 text-muted-foreground">
+                          <span className="size-2.5 rounded-sm shrink-0" style={{ background: c.color }} />
+                          {c.name}
+                        </span>
+                        <span className="font-semibold tabular-nums text-foreground">{c.value}%</span>
+                      </div>
                     ))}
-                    {items.length === 0 && (
-                      <li className="text-sm text-muted-foreground py-2 text-center">All clear</li>
-                    )}
-                  </ul>
-                </Panel>
-              );
-            })}
+                  </div>
+                </>
+              ) : (
+                <div className="py-12 text-center text-sm text-muted-foreground">No open alerts</div>
+              )}
+            </Panel>
           </div>
         </>
       ) : (
-        /* ── Action Tracker table ───────────────────────────────────────── */
         <Panel>
           <SectionTitle
             title="Action Tracker"
@@ -249,12 +344,9 @@ export function Alerts() {
             action={
               <div className="flex items-center gap-1.5 flex-wrap">
                 {(['all','open','in-progress','resolved'] as const).map(f => (
-                  <button
-                    key={f}
-                    onClick={() => setStatusFilter(f)}
+                  <button key={f} onClick={() => setStatusFilter(f)}
                     className={cn("px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors",
-                      statusFilter === f ? 'bg-accent text-accent-foreground' : 'bg-secondary text-muted-foreground hover:text-foreground')}
-                  >
+                      statusFilter === f ? 'bg-accent text-accent-foreground' : 'bg-secondary text-muted-foreground hover:text-foreground')}>
                     {f === 'all' ? `All (${liveItems.length})` : statusLabel(f as Status)}
                   </button>
                 ))}
@@ -274,8 +366,8 @@ export function Alerts() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(item => (
-                  <tr key={item.id} className="border-b border-border/60 last:border-0 hover:bg-secondary/50 transition-colors">
+                {filtered.map((item, idx) => (
+                  <tr key={`${item.id}-${idx}`} className="border-b border-border/60 last:border-0 hover:bg-secondary/50 transition-colors">
                     <td className="py-3 pr-2">
                       <Badge variant={sevColor(item.sev)}>{item.sev === 'high' ? 'High' : item.sev === 'med' ? 'Medium' : 'Low'}</Badge>
                     </td>

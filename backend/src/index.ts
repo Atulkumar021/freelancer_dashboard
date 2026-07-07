@@ -3,25 +3,29 @@ import express from 'express';
 import cors from 'cors';
 import { connectDB } from './db';
 
-import authRouter        from './routes/auth';
-import syncRouter        from './routes/sync';
-import dashboardRouter   from './routes/dashboard';
-import healthScoreRouter from './routes/healthScore';
-import budgetRouter      from './routes/budget';
-import cashflowRouter    from './routes/cashflow';
-import salesRouter       from './routes/sales';
-import purchasesRouter   from './routes/purchases';
-import pnlRouter         from './routes/pnl';
-import balanceSheetRouter from './routes/balanceSheet';
+import authRouter          from './routes/auth';
+import syncRouter          from './routes/sync';
+import dashboardRouter     from './routes/dashboard';
+import healthScoreRouter   from './routes/healthScore';
+import budgetRouter        from './routes/budget';
+import cashflowRouter      from './routes/cashflow';
+import salesRouter         from './routes/sales';
+import purchasesRouter     from './routes/purchases';
+import pnlRouter           from './routes/pnl';
+import balanceSheetRouter  from './routes/balanceSheet';
 import workingCapitalRouter from './routes/workingCapital';
-import ratiosRouter      from './routes/ratios';
-import complianceRouter  from './routes/compliance';
-import payrollRouter     from './routes/payroll';
-import taxPlanningRouter from './routes/taxPlanning';
-import commentaryRouter  from './routes/commentary';
-import advisoryRouter    from './routes/advisory';
-import adminRouter       from './routes/admin';
-import statusRouter      from './routes/status';
+import ratiosRouter        from './routes/ratios';
+import complianceRouter    from './routes/compliance';
+import payrollRouter       from './routes/payroll';
+import taxPlanningRouter   from './routes/taxPlanning';
+import commentaryRouter    from './routes/commentary';
+import advisoryRouter      from './routes/advisory';
+import adminRouter         from './routes/admin';
+import statusRouter        from './routes/status';
+import companiesRouter     from './routes/companies';
+import activityRouter      from './routes/activity';
+
+import { requireJwt, requireCompanyAccess } from './middleware/authMiddleware';
 
 const app  = express();
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
@@ -48,26 +52,30 @@ app.use(express.urlencoded({ extended: true }));
 /* ── Health check ───────────────────────────────────────────────────────── */
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
-/* ── Routes ─────────────────────────────────────────────────────────────── */
-app.use('/api/auth',          authRouter);
-app.use('/api/sync',          syncRouter);
-app.use('/api/dashboard',     dashboardRouter);
-app.use('/api/health-score',  healthScoreRouter);
-app.use('/api/budget',        budgetRouter);
-app.use('/api/cashflow',      cashflowRouter);
-app.use('/api/sales',         salesRouter);
-app.use('/api/purchases',     purchasesRouter);
-app.use('/api/pnl',           pnlRouter);
-app.use('/api/balance-sheet', balanceSheetRouter);
-app.use('/api/working-capital', workingCapitalRouter);
-app.use('/api/ratios',        ratiosRouter);
-app.use('/api/compliance',    complianceRouter);
-app.use('/api/payroll',       payrollRouter);
-app.use('/api/tax-planning',  taxPlanningRouter);
-app.use('/api/commentary',    commentaryRouter);
-app.use('/api/advisory',      advisoryRouter);
-app.use('/api/admin',         adminRouter);
-app.use('/api/tally',         statusRouter);
+/* ── Auth + management routes (own auth per endpoint) ───────────────────── */
+app.use('/api/auth',       authRouter);
+app.use('/api/sync',       syncRouter);
+app.use('/api/admin',      adminRouter);
+app.use('/api/tally',      statusRouter);
+app.use('/api/companies',  companiesRouter);
+app.use('/api/activity',   activityRouter);
+
+/* ── Data routes — protected by JWT + company-level access control ──────── */
+app.use('/api/dashboard',       requireJwt, requireCompanyAccess, dashboardRouter);
+app.use('/api/health-score',    requireJwt, requireCompanyAccess, healthScoreRouter);
+app.use('/api/budget',          requireJwt, requireCompanyAccess, budgetRouter);
+app.use('/api/cashflow',        requireJwt, requireCompanyAccess, cashflowRouter);
+app.use('/api/sales',           requireJwt, requireCompanyAccess, salesRouter);
+app.use('/api/purchases',       requireJwt, requireCompanyAccess, purchasesRouter);
+app.use('/api/pnl',             requireJwt, requireCompanyAccess, pnlRouter);
+app.use('/api/balance-sheet',   requireJwt, requireCompanyAccess, balanceSheetRouter);
+app.use('/api/working-capital', requireJwt, requireCompanyAccess, workingCapitalRouter);
+app.use('/api/ratios',          requireJwt, requireCompanyAccess, ratiosRouter);
+app.use('/api/compliance',      requireJwt, requireCompanyAccess, complianceRouter);
+app.use('/api/payroll',         requireJwt, requireCompanyAccess, payrollRouter);
+app.use('/api/tax-planning',    requireJwt, requireCompanyAccess, taxPlanningRouter);
+app.use('/api/commentary',      requireJwt, requireCompanyAccess, commentaryRouter);
+app.use('/api/advisory',        requireJwt, requireCompanyAccess, advisoryRouter);
 
 /* ── 404 catch-all ──────────────────────────────────────────────────────── */
 app.use((_req, res) => res.status(404).json({ success: false, error: 'Route not found' }));

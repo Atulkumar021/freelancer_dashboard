@@ -3,7 +3,7 @@ import {
   Home, LayoutDashboard, TrendingUp, ShoppingCart, PieChart,
   Scale, Wallet, Package, ShieldCheck, Activity, Lightbulb,
   FileText, Bell, Settings as SettingsIcon, ChevronLeft,
-  UserCog,
+  UserCog, Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -120,7 +120,7 @@ function NavItem({
 
 export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const pathname = useLocation().pathname;
-  const { isRole } = useAuth();
+  const { isRole, viewingCompanyId } = useAuth();
   let itemIndex = 0;
 
   return (
@@ -158,7 +158,27 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 
       {/* Navigation groups */}
       <nav className="flex-1 overflow-y-auto scrollbar-thin py-3">
-        {/* Home — AI CFO Dashboard */}
+        {/* Superadmin: Organisations Panel link */}
+        {isRole('superadmin') && (
+          <div className="px-2 mb-1">
+            {!collapsed && (
+              <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/45">
+                Admin
+              </p>
+            )}
+            <NavItem
+              to="/superadmin"
+              label="Organisations"
+              icon={Building2}
+              active={pathname === '/superadmin'}
+              collapsed={collapsed}
+              index={itemIndex++}
+            />
+          </div>
+        )}
+
+        {/* Home — AI CFO Dashboard (always visible; superadmin sees it only when viewing an org) */}
+        {(!isRole('superadmin') || viewingCompanyId) && (
         <div className="px-2 mb-2">
           {!collapsed && (
             <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/45">
@@ -174,7 +194,8 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
             index={itemIndex++}
           />
         </div>
-        {navGroups.map((group) => (
+        )}
+        {(!isRole('superadmin') || viewingCompanyId) && navGroups.map((group) => (
           <div key={group.group} className="mb-1">
             {!collapsed && (
               <div className="px-4 py-2 flex items-center gap-2">
@@ -199,8 +220,20 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
         ))}
       </nav>
 
-      {/* Admin-only: Manage Users */}
-      {isRole('superadmin', 'admin', 'owner') && (
+      {/* Manage Users — visible for org admins; superadmin only when viewing an org */}
+      {isRole('admin', 'owner') && (
+        <div className="px-2 pb-1">
+          <NavItem
+            to="/users"
+            label="Manage Users"
+            icon={UserCog}
+            active={pathname === '/users'}
+            collapsed={collapsed}
+            index={itemIndex++}
+          />
+        </div>
+      )}
+      {isRole('superadmin') && viewingCompanyId && (
         <div className="px-2 pb-1">
           <NavItem
             to="/users"

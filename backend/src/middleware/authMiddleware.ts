@@ -43,3 +43,13 @@ export function requireRole(...roles: UserRole[]) {
     next();
   };
 }
+
+export function requireCompanyAccess(req: Request, res: Response, next: NextFunction): void {
+  const jwtUser = req.jwtUser;
+  if (!jwtUser) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+  if (jwtUser.role === 'superadmin') { next(); return; }
+  const companyIdFromPath = req.path.split('/').filter(Boolean)[0]?.split('?')[0];
+  if (!companyIdFromPath) { next(); return; }
+  if (jwtUser.companyId && jwtUser.companyId === companyIdFromPath) { next(); return; }
+  res.status(403).json({ success: false, error: 'Access denied to this company\'s data' });
+}
