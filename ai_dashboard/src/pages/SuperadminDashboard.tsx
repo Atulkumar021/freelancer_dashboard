@@ -90,7 +90,7 @@ function OrgCardItem({ org, onView, onDelete }: {
   onView: (org: OrgCard) => void;
   onDelete: (org: OrgCard) => void;
 }) {
-  const initials = org.name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+  const initials = (org.name ?? '').split(' ').filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?';
   return (
     <div className="rounded-xl border border-border bg-card p-5 flex flex-col gap-4 shadow-sm hover:border-amber-500/30 transition-colors group">
       <div className="flex items-start gap-3">
@@ -115,7 +115,7 @@ function OrgCardItem({ org, onView, onDelete }: {
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Org Admin</p>
             <div className="flex items-center gap-2">
               <span className="size-7 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-bold flex items-center justify-center shrink-0">
-                {org.adminUser.name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
+                {(org.adminUser.name ?? '').split(' ').filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?'}
               </span>
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate">{org.adminUser.name}</p>

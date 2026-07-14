@@ -230,7 +230,7 @@ export function Users() {
                     <td className="py-3 pr-2">
                       <span className="flex items-center gap-2.5">
                         <span className="size-8 rounded-full bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center shrink-0">
-                          {u.name.split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase()}
+                          {(u.name ?? '').split(' ').filter(Boolean).map((s) => s[0]).join('').slice(0, 2).toUpperCase() || '?'}
                         </span>
                         <span className="font-medium text-foreground">{u.name}</span>
                       </span>
