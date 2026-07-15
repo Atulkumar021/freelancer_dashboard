@@ -93,7 +93,7 @@ router.post('/', async (req: Request, res: Response) => {
       amount: extractVoucherAmount(r),
       narration: r.NARRATION || r.narration || '',
       rawData: r,
-      syncId: `${companyId}-${lower}-${r.VOUCHERNUMBER || r.voucherNumber || syncId || Date.now()}`,
+      syncId: `${companyId}-${lower}-${r.VOUCHERNUMBER || r.DSPVCHNO || r.voucherNumber || r.number || r.$?.VCHNO || r.$?.REMOTEID || syncId || Date.now()}`,
     }));
     upserted = await upsertMany(Voucher, stamped);
 
@@ -174,16 +174,26 @@ router.post('/', async (req: Request, res: Response) => {
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 
-/**
- * Tally payment/receipt vouchers don't always have a top-level AMOUNT.
- * The real amount lives inside ALLLEDGERENTRIES.LIST → LEDGERENTRIES.LIST entries.
- * This function checks both and returns whichever is non-zero.
- */
 function extractVoucherAmount(r: any): number {
-  const direct = parseAmount(r.AMOUNT ?? r.amount ?? r.VOUCHERAMT ?? r.VOUCHERAMOUNT);
-  if (direct > 0) return direct;
+  // 1. Direct fields — standard + Day Book display format
+  const directFields = [
+    'AMOUNT', 'amount', 'VOUCHERAMT', 'VOUCHERAMOUNT',
+    'DSPVCHAMT', 'DSPDEBITAMT', 'DSPCREDITAMT',
+    'DEBITAMOUNT', 'CREDITAMOUNT',
+  ];
+  for (const f of directFields) {
+    const v = parseAmount(r[f]);
+    if (v > 0) return v;
+  }
+  // XML attributes (e.g. <VOUCHER VOUCHERAMT="19723">)
+  if (r.$) {
+    for (const f of directFields) {
+      const v = parseAmount(r.$[f]);
+      if (v > 0) return v;
+    }
+  }
 
-  // TallyPrime XML: ledger entries hold the actual debit/credit amounts
+  // 2. TallyPrime full voucher: ledger entries
   const entryLists = [
     r['ALLLEDGERENTRIES.LIST']?.['LEDGERENTRIES.LIST'],
     r['LEDGERENTRIES.LIST'],
