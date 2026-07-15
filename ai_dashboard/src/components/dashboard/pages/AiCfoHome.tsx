@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { AnimatedValue } from "../Animated";
 import { PageHeader, PageSection, Panel, SectionCard } from "../Primitives";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFilters } from "@/contexts/FilterContext";
 import { api, fmt, getCompanyId } from "@/lib/api";
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
@@ -164,9 +165,17 @@ function NoDataState({ companyName }: { companyName?: string }) {
 export function AiCfoHome() {
   const navigate  = useNavigate();
   const { user, viewingCompanyName } = useAuth();
+  const { filters } = useFilters();
   const firstName = user?.name?.split(" ")[0] ?? "there";
   const hour      = new Date().getHours();
   const greeting  = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  // Convert filter "fy26" → "2025-26" for the API
+  const fyParam = (() => {
+    const n = parseInt(filters.fy.replace('fy', ''), 10);
+    const s = 2000 + n - 1;
+    return `${s}-${String(s + 1).slice(2)}`;
+  })();
 
   const [dashData,   setDashData]   = useState<any>(null);
   const [healthData, setHealthData] = useState<any>(null);
@@ -178,7 +187,7 @@ export function AiCfoHome() {
     if (!getCompanyId()) { setLoading(false); return; }
     setLoading(true);
     const [dash, health, comp] = await Promise.allSettled([
-      api.dashboard(),
+      api.dashboard(fyParam),
       api.healthScore(),
       api.compliance(),
     ]);
@@ -190,15 +199,22 @@ export function AiCfoHome() {
     setCompData(c);
     const s = d?.summary ?? {};
     setHasData(
-      (s.totalSalesYTD ?? 0) > 0 ||
-      (s.debtorCount   ?? 0) > 0 ||
-      (s.totalCashBank ?? 0) > 0 ||
-      (c?.filings?.length ?? 0) > 0,
+      (s.totalSalesYTD     ?? 0) > 0 ||
+      (s.totalPurchasesYTD ?? 0) > 0 ||
+      (s.totalReceivables  ?? 0) > 0 ||
+      (s.totalPayables     ?? 0) > 0 ||
+      (s.debtorCount       ?? 0) > 0 ||
+      (s.creditorCount     ?? 0) > 0 ||
+      (s.totalCashBank     ?? 0) > 0 ||
+      (d?.paymentsByMonth?.length ?? 0) > 0 ||
+      (d?.receiptsByMonth?.length ?? 0) > 0 ||
+      (c?.filings?.length  ?? 0) > 0 ||
+      d?.lastSyncAt != null,
     );
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, fyParam]);
 
   const companyLabel = viewingCompanyName ?? dashData?.company?.name ?? '';
 

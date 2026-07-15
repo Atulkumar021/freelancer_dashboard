@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useFilters } from "@/contexts/FilterContext";
 import {
   AlertTriangle, AlertCircle, Bell, CheckCircle2, Clock, Download,
   Info, Loader2, PlugZap, ShieldCheck, User, X,
@@ -127,6 +128,8 @@ function Skeleton({ className }: { className?: string }) {
 
 /* ── Component ─────────────────────────────────────────────────────────── */
 export function Alerts() {
+  const { filters } = useFilters();
+  const fyParam = (() => { const n = parseInt(filters.fy.replace('fy',''),10); const s=2000+n-1; return `${s}-${String(s+1).slice(2)}`; })();
   const [activeTab, setActiveTab] = useState<'overview' | 'tracker'>('overview');
   const [statusFilter, setStatusFilter] = useState<'all' | Status>('all');
   const [items, setItems] = useState<ActionItem[]>([]);
@@ -138,7 +141,7 @@ export function Alerts() {
     setLoading(true);
     const [adv, dash, comp] = await Promise.allSettled([
       api.advisory(),
-      api.dashboard(),
+      api.dashboard(fyParam),
       api.compliance(),
     ]);
     const advisory  = adv.status  === 'fulfilled' ? adv.value  : null;
@@ -165,7 +168,7 @@ export function Alerts() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, fyParam]);
 
   const toggleResolved = async (id: string) => {
     setResolvedIds(prev => {

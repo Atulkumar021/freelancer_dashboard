@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useFilters } from "@/contexts/FilterContext";
 import {
   Info, TrendingUp, TrendingDown, Download, ArrowUpRight, Sparkles,
   Users, Building2, FileText, CreditCard, AlertTriangle,
@@ -408,7 +409,14 @@ const sevStyle: Record<Sev, { badge: string; label: string }> = {
 export function ExecutiveOverview() {
   const navigate = useNavigate();
   const { viewingCompanyName } = useAuth();
+  const { filters } = useFilters();
   const [kpiFilter, setKpiFilter] = useState<KpiGroup>("all");
+
+  const fyParam = (() => {
+    const n = parseInt(filters.fy.replace('fy', ''), 10);
+    const s = 2000 + n - 1;
+    return `${s}-${String(s + 1).slice(2)}`;
+  })();
 
   const [dashData,   setDashData]   = useState<any>(null);
   const [pnlData,    setPnlData]    = useState<any>(null);
@@ -422,7 +430,7 @@ export function ExecutiveOverview() {
     if (!getCompanyId()) { setLoading(false); return; }
     setLoading(true);
     const [d, p, ra, h, c] = await Promise.allSettled([
-      api.dashboard(), api.pnl(), api.ratios(), api.healthScore(), api.commentary(),
+      api.dashboard(fyParam), api.pnl(), api.ratios(), api.healthScore(), api.commentary(),
     ]);
     const dash   = d.status  === 'fulfilled' ? d.value  : null;
     const pnl    = p.status  === 'fulfilled' ? p.value  : null;
@@ -431,11 +439,18 @@ export function ExecutiveOverview() {
     const comm   = c.status  === 'fulfilled' ? c.value  : null;
     setDashData(dash); setPnlData(pnl); setRatiosData(ratios); setHealthData(health); setCommData(comm);
     const s = dash?.summary ?? {};
-    setHasData((s.totalSalesYTD ?? 0) > 0 || (s.debtorCount ?? 0) > 0 || (s.totalCashBank ?? 0) > 0);
+    const totalPayments = (dash?.paymentsByMonth ?? []).reduce((acc: number, m: any) => acc + (m.total ?? 0), 0);
+    const totalReceipts = (dash?.receiptsByMonth ?? []).reduce((acc: number, m: any) => acc + (m.total ?? 0), 0);
+    setHasData(
+      (s.totalSalesYTD ?? 0) > 0 || (s.totalPurchasesYTD ?? 0) > 0 ||
+      (s.debtorCount ?? 0) > 0 || (s.creditorCount ?? 0) > 0 ||
+      (s.totalCashBank ?? 0) > 0 || totalPayments > 0 || totalReceipts > 0 ||
+      !!dash?.lastSyncAt
+    );
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, fyParam]);
 
   /* ── Loading ── */
   if (loading) {

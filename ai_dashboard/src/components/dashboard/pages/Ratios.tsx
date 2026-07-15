@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useFilters } from "@/contexts/FilterContext";
 import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,8 @@ function fmtPct(v: number)   { return !isFinite(v) || isNaN(v) ? "—" : v.toFix
 
 /* ── Component ──────────────────────────────────────────────────────────── */
 export function Ratios() {
+  const { filters } = useFilters();
+  const fyParam = (() => { const n = parseInt(filters.fy.replace('fy',''),10); const s=2000+n-1; return `${s}-${String(s+1).slice(2)}`; })();
   const [ratiosData, setRatiosData] = useState<any>(null);
   const [dash, setDash]             = useState<any>(null);
   const [pnl, setPnl]               = useState<any>(null);
@@ -47,11 +50,11 @@ export function Ratios() {
   const [loading, setLoading]       = useState(true);
 
   useEffect(() => {
-    Promise.all([api.ratios(), api.dashboard(), api.pnl(), api.balanceSheet()])
+    Promise.all([api.ratios(), api.dashboard(fyParam), api.pnl(), api.balanceSheet()])
       .then(([r, d, p, b]) => { setRatiosData(r); setDash(d); setPnl(p); setBs(b); })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [fyParam]);
 
   const computed = useMemo(() => {
     const bsSummary = bs?.summary  ?? {};

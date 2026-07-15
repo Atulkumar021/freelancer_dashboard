@@ -90,7 +90,7 @@ router.post('/', async (req: Request, res: Response) => {
       voucherNumber: r.VOUCHERNUMBER || r.voucherNumber || r.number || '',
       date: parseDate(r.DATE || r.date) || new Date(),
       partyName: r.PARTYLEDGERNAME || r.partyName || r.party || '',
-      amount: parseAmount(r.AMOUNT || r.amount || r.VOUCHERAMT),
+      amount: extractVoucherAmount(r),
       narration: r.NARRATION || r.narration || '',
       rawData: r,
       syncId: `${companyId}-${lower}-${r.VOUCHERNUMBER || r.voucherNumber || syncId || Date.now()}`,
@@ -173,6 +173,33 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
+
+/**
+ * Tally payment/receipt vouchers don't always have a top-level AMOUNT.
+ * The real amount lives inside ALLLEDGERENTRIES.LIST → LEDGERENTRIES.LIST entries.
+ * This function checks both and returns whichever is non-zero.
+ */
+function extractVoucherAmount(r: any): number {
+  const direct = parseAmount(r.AMOUNT ?? r.amount ?? r.VOUCHERAMT ?? r.VOUCHERAMOUNT);
+  if (direct > 0) return direct;
+
+  // TallyPrime XML: ledger entries hold the actual debit/credit amounts
+  const entryLists = [
+    r['ALLLEDGERENTRIES.LIST']?.['LEDGERENTRIES.LIST'],
+    r['LEDGERENTRIES.LIST'],
+    r.ALLLEDGERENTRIES?.LEDGERENTRIES,
+  ];
+  for (const entries of entryLists) {
+    if (!entries) continue;
+    const arr = Array.isArray(entries) ? entries : [entries];
+    const amounts = arr.map((e: any) => parseAmount(e.AMOUNT ?? e.amount ?? 0));
+    const max = Math.max(...amounts);
+    if (max > 0) return max;
+  }
+
+  return 0;
+}
+
 async function updateLastSync(companyId: string) {
   await Company.findOneAndUpdate(
     { companyId },

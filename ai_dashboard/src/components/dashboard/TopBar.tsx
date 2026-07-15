@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useCompanyMeta } from "@/hooks/useCompanyMeta";
 import {
   Bell, Download, HelpCircle, Menu, RefreshCw,
   Search, ChevronDown, LogOut, Users, SlidersHorizontal,
@@ -36,6 +37,7 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
   const { user, logout, isRole, viewingCompanyId, viewingCompanyName, setViewingCompany } = useAuth();
   const { setPanelOpen, activeFilterCount, filters, setFilter } = useFilters();
   const { theme, toggle: toggleTheme } = useTheme();
+  const { months: availableMonths, branches: availableBranches } = useCompanyMeta();
   const [searchOpen,   setSearchOpen]   = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [exportOpen,   setExportOpen]   = useState(false);
@@ -91,81 +93,77 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
         {/* ── Period + org filters ─────────────────────────────────────── */}
         <div className="hidden 2xl:flex items-center gap-2 ml-1 shrink-0">
           <span className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">Period:</span>
-          <Select value={filters.fy} onValueChange={v => setFilter('fy', v)}>
+          <Select value={filters.fy} onValueChange={v => { setFilter('fy', v); setFilter('month', 'all'); }}>
             <SelectTrigger className="h-8 w-[108px] text-xs border-border bg-background gap-1 pr-2">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="fy26">FY 2025-26</SelectItem>
-              <SelectItem value="fy25">FY 2024-25</SelectItem>
-              <SelectItem value="fy24">FY 2023-24</SelectItem>
+              {(() => {
+                const now = new Date();
+                const curFYStart = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+                return [0, 1, 2].map((offset) => {
+                  const s = curFYStart - offset;
+                  const key = `fy${String(s + 1).slice(2)}`;
+                  return <SelectItem key={key} value={key}>FY {s}-{String(s + 1).slice(2)}</SelectItem>;
+                });
+              })()}
             </SelectContent>
           </Select>
 
           <Select value={filters.month} onValueChange={v => setFilter('month', v)}>
-            <SelectTrigger className="h-8 w-[100px] text-xs border-border bg-background gap-1 pr-2">
+            <SelectTrigger className="h-8 w-[110px] text-xs border-border bg-background gap-1 pr-2">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Months</SelectItem>
-              {["Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar"].map((m) => (
-                <SelectItem key={m} value={m.toLowerCase()}>{m} 2025</SelectItem>
+              {availableMonths.map((m) => (
+                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          <Select value={filters.branch} onValueChange={v => setFilter('branch', v)}>
-            <SelectTrigger className="h-8 w-[112px] text-xs border-border bg-background gap-1 pr-2">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Branches</SelectItem>
-              <SelectItem value="mum">Mumbai</SelectItem>
-              <SelectItem value="del">Delhi</SelectItem>
-              <SelectItem value="blr">Bengaluru</SelectItem>
-              <SelectItem value="hyd">Hyderabad</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={filters.costCentre} onValueChange={v => setFilter('costCentre', v)}>
-            <SelectTrigger className="h-8 w-[120px] text-xs border-border bg-background gap-1 pr-2">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Centres</SelectItem>
-              <SelectItem value="cc1">Corporate HQ</SelectItem>
-              <SelectItem value="cc2">Branch Ops</SelectItem>
-              <SelectItem value="cc3">R&amp;D</SelectItem>
-              <SelectItem value="cc4">Marketing</SelectItem>
-            </SelectContent>
-          </Select>
+          {availableBranches.length > 0 && (
+            <Select value={filters.branch} onValueChange={v => setFilter('branch', v)}>
+              <SelectTrigger className="h-8 w-[120px] text-xs border-border bg-background gap-1 pr-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Branches</SelectItem>
+                {availableBranches.map((b) => (
+                  <SelectItem key={b} value={b}>{b}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         {/* Tablet / mid widths: just month + branch */}
         <div className="hidden lg:flex 2xl:hidden items-center gap-2 ml-1 shrink-0">
           <span className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">Filters:</span>
           <Select value={filters.month} onValueChange={v => setFilter('month', v)}>
-            <SelectTrigger className="h-8 w-[108px] text-xs border-border bg-background">
+            <SelectTrigger className="h-8 w-[110px] text-xs border-border bg-background">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Months</SelectItem>
-              {["Apr","May","Jun","Jul","Aug","Sep","Oct","Nov"].map((m) => (
-                <SelectItem key={m} value={m.toLowerCase()}>{m} 2025</SelectItem>
+              {availableMonths.map((m) => (
+                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Select value={filters.branch} onValueChange={v => setFilter('branch', v)}>
-            <SelectTrigger className="h-8 w-[108px] text-xs border-border bg-background">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Branches</SelectItem>
-              <SelectItem value="mum">Mumbai</SelectItem>
-              <SelectItem value="del">Delhi</SelectItem>
-              <SelectItem value="blr">Bengaluru</SelectItem>
-            </SelectContent>
-          </Select>
+          {availableBranches.length > 0 && (
+            <Select value={filters.branch} onValueChange={v => setFilter('branch', v)}>
+              <SelectTrigger className="h-8 w-[110px] text-xs border-border bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Branches</SelectItem>
+                {availableBranches.map((b) => (
+                  <SelectItem key={b} value={b}>{b}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         {/* ── Spacer ───────────────────────────────────────────────────── */}

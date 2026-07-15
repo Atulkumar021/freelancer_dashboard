@@ -4,13 +4,14 @@ import Ledger from '../models/ledger';
 import BankAccount from '../models/bankAccount';
 import LoanEmi from '../models/loanEmi';
 import FixedDeposit from '../models/fixedDeposit';
-import { getCurrentFYRange } from '../helpers';
+import { getActiveFYRange } from '../helpers';
 
 const router = Router();
 
 router.get('/:companyId', async (req: Request, res: Response) => {
-  const { companyId } = req.params;
-  const { start: fyStart, end: fyEnd } = getCurrentFYRange();
+  const companyId = req.params.companyId as string;
+  const fyParam   = typeof req.query.fy === 'string' ? req.query.fy : undefined;
+  const { start: fyStart, end: fyEnd } = await getActiveFYRange(companyId, fyParam);
   const today   = new Date();
   const in30    = new Date(today.getTime() + 30  * 86_400_000);
   const in90    = new Date(today.getTime() + 90  * 86_400_000);

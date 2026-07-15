@@ -3,7 +3,7 @@ import Voucher from '../models/voucher';
 import Ledger from '../models/ledger';
 import StockItem from '../models/stock';
 import BankAccount from '../models/bankAccount';
-import { getCurrentFYRange } from '../helpers';
+import { getActiveFYRange } from '../helpers';
 
 const router = Router();
 
@@ -11,8 +11,9 @@ const CURR_ASSETS = ['Sundry Debtors','Stock-in-Hand','Cash-in-Hand','Bank Accou
 const CURR_LIAB   = ['Sundry Creditors','Current Liabilities','Duties & Taxes','Bank OD Account','Provisions'];
 
 router.get('/:companyId', async (req: Request, res: Response) => {
-  const { companyId } = req.params;
-  const { start: fyStart, end: fyEnd } = getCurrentFYRange();
+  const companyId = req.params.companyId as string;
+  const fyParam   = typeof req.query.fy === 'string' ? req.query.fy : undefined;
+  const { start: fyStart, end: fyEnd } = await getActiveFYRange(companyId, fyParam);
 
   const [currAssets, currLiab, debtors, creditors, ledgerStock, stockItems, salesA, purchaseA, odAccounts] = await Promise.all([
     Ledger.find({ companyId, group: { $in: CURR_ASSETS } }).select('closingBalance').lean(),

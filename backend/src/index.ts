@@ -35,6 +35,8 @@ const allowedOrigins = [
   'http://localhost:8080',
   'http://localhost:3000',
   'http://localhost:4173',
+  'http://localhost:5173',
+  'https://dashboard.consultara.co.in',
   'https://ai-dashboard-sigma-five.vercel.app',
   ...(process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)

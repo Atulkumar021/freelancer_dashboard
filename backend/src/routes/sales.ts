@@ -1,13 +1,14 @@
 import { Router, Request, Response } from 'express';
 import Voucher from '../models/voucher';
 import Ledger from '../models/ledger';
-import { getCurrentFYRange } from '../helpers';
+import { getActiveFYRange } from '../helpers';
 
 const router = Router();
 
 router.get('/:companyId', async (req: Request, res: Response) => {
-  const { companyId } = req.params;
-  const { start: fyStart, end: fyEnd } = getCurrentFYRange();
+  const companyId = req.params.companyId as string;
+  const fyParam   = typeof req.query.fy === 'string' ? req.query.fy : undefined;
+  const { start: fyStart, end: fyEnd } = await getActiveFYRange(companyId, fyParam);
 
   const [salesByMonth, salesByParty, topDebtors, totalReceivables, totalSalesYTD] = await Promise.all([
     Voucher.aggregate([{ $match: { companyId, voucherType: 'Sales', date: { $gte: fyStart, $lte: fyEnd } } }, { $group: { _id: { year: { $year: '$date' }, month: { $month: '$date' } }, total: { $sum: '$amount' }, count: { $sum: 1 } } }, { $sort: { '_id.year': 1, '_id.month': 1 } }]),

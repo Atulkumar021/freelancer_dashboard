@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useFilters } from '@/contexts/FilterContext';
 import {
   Brain, Download, FileBarChart, Lightbulb, MessageSquare,
   TrendingUp, AlertCircle, CheckCircle2, CheckSquare, ChevronDown, PlugZap,
@@ -174,6 +175,8 @@ function Skeleton({ className }: { className?: string }) {
 
 /* ── Main Component ─────────────────────────────────────────────────────── */
 export function Insights() {
+  const { filters } = useFilters();
+  const fyParam = (() => { const n = parseInt(filters.fy.replace('fy',''),10); const s=2000+n-1; return `${s}-${String(s+1).slice(2)}`; })();
   const [filter, setFilter] = useState<'all' | InsightType>('all');
   const [dashData,   setDashData]   = useState<any>(null);
   const [pnlData,    setPnlData]    = useState<any>(null);
@@ -187,7 +190,7 @@ export function Insights() {
     if (!getCompanyId()) { setLoading(false); return; }
     setLoading(true);
     const [d, p, ra, co, cm, adv] = await Promise.allSettled([
-      api.dashboard(), api.pnl(), api.ratios(), api.compliance(), api.commentary(), api.advisory(),
+      api.dashboard(fyParam), api.pnl(), api.ratios(), api.compliance(), api.commentary(), api.advisory(),
     ]);
     if (d.status   === 'fulfilled') setDashData(d.value);
     if (p.status   === 'fulfilled') setPnlData(p.value);
@@ -198,7 +201,7 @@ export function Insights() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, fyParam]);
 
   if (loading) {
     return (

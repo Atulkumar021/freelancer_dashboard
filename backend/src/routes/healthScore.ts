@@ -3,12 +3,12 @@ import Ledger from '../models/ledger';
 import Voucher from '../models/voucher';
 import ComplianceFiling from '../models/complianceFiling';
 import HealthScore from '../models/healthScore';
-import { getCurrentFYRange, scoreBand } from '../helpers';
+import { getActiveFYRange, scoreBand } from '../helpers';
 
 const router = Router();
 
-async function computeScore(companyId: string) {
-  const { start: fyStart, end: fyEnd, label: fyLabel } = getCurrentFYRange();
+async function computeScore(companyId: string, fyParam?: string) {
+  const { start: fyStart, end: fyEnd, label: fyLabel } = await getActiveFYRange(companyId, fyParam);
   const now = new Date();
   const month = now.getMonth() < 3 ? now.getMonth() + 10 : now.getMonth() - 2;
 
@@ -69,8 +69,9 @@ async function computeScore(companyId: string) {
 
 router.get('/:companyId', async (req: Request, res: Response) => {
   const companyId = req.params.companyId as string;
+  const fyParam   = typeof req.query.fy === 'string' ? req.query.fy : undefined;
   const [current, trend] = await Promise.all([
-    computeScore(companyId),
+    computeScore(companyId, fyParam),
     HealthScore.find({ companyId }).sort({ financialYear: 1, month: 1 }).lean(),
   ]);
   res.json({ success: true, current, trend });

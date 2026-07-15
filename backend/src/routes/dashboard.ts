@@ -9,13 +9,46 @@ import ComplianceFiling from '../models/complianceFiling';
 import PayrollRecord from '../models/payrollRecord';
 import HealthScore from '../models/healthScore';
 import BudgetItem from '../models/budgetItem';
-import { getCurrentFYRange } from '../helpers';
+import { getActiveFYRange } from '../helpers';
 
 const router = Router();
 
-router.get('/:companyId', async (req: Request, res: Response) => {
+/* ── GET /api/dashboard/:companyId/meta ─────────────────────────────────── */
+router.get('/:companyId/meta', async (req: Request, res: Response) => {
   const { companyId } = req.params;
-  const { start: fyStart, end: fyEnd, label: fyLabel } = getCurrentFYRange();
+
+  const [monthsAgg, branchLedgers] = await Promise.all([
+    // Distinct year+month combinations that have voucher data
+    Voucher.aggregate([
+      { $match: { companyId } },
+      { $group: { _id: { year: { $year: '$date' }, month: { $month: '$date' } } } },
+      { $sort: { '_id.year': 1, '_id.month': 1 } },
+    ]),
+    // Branch names stored as ledgers under Branch / Divisions group
+    Ledger.find({
+      companyId,
+      group: { $in: ['Branch / Divisions', 'Branches', 'Branch', 'Cost Centres', 'Cost Centers'] },
+    }).select('name').lean(),
+  ]);
+
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  const months = monthsAgg.map((m: any) => ({
+    year:  m._id.year  as number,
+    month: m._id.month as number,
+    label: `${MONTH_NAMES[(m._id.month as number) - 1]} ${m._id.year}`,
+    value: `${m._id.year}-${String(m._id.month).padStart(2, '0')}`,
+  }));
+
+  const branches = branchLedgers.map((l: any) => l.name).filter(Boolean);
+
+  res.json({ success: true, months, branches });
+});
+
+router.get('/:companyId', async (req: Request, res: Response) => {
+  const companyId = req.params.companyId as string;
+  const fyParam = typeof req.query.fy === 'string' ? req.query.fy : undefined;
+  const { start: fyStart, end: fyEnd, label: fyLabel } = await getActiveFYRange(companyId, fyParam);
   const today   = new Date();
   const in14    = new Date(today.getTime() + 14 * 86_400_000);
   const in30    = new Date(today.getTime() + 30 * 86_400_000);
