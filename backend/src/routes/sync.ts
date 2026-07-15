@@ -193,11 +193,11 @@ function extractVoucherAmount(r: any): number {
     }
   }
 
-  // 2. TallyPrime full voucher: ledger entries
+  // 2. ALLLEDGERENTRIES.LIST is directly the array of ledger entries in TallyPrime
   const entryLists = [
+    r['ALLLEDGERENTRIES.LIST'],
     r['ALLLEDGERENTRIES.LIST']?.['LEDGERENTRIES.LIST'],
     r['LEDGERENTRIES.LIST'],
-    r.ALLLEDGERENTRIES?.LEDGERENTRIES,
   ];
   for (const entries of entryLists) {
     if (!entries) continue;
