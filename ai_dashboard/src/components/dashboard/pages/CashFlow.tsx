@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useFilters } from "@/contexts/FilterContext";
 import {
   AlertTriangle, Calendar, Download, TrendingUp, TrendingDown, Wallet, Activity,
 } from "lucide-react";
@@ -49,12 +50,16 @@ function KpiTile({ label, value, icon: Icon, hint, tone }: {
 }
 
 export function CashFlow() {
+  const { filters } = useFilters();
+  const fyParam = (() => { const n = parseInt(filters.fy.replace('fy',''),10); const s=2000+n-1; return `${s}-${String(s+1).slice(2)}`; })();
+  const branch = filters.branch !== 'all' ? filters.branch : undefined;
   const [data, setData]       = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.cashflow().then(setData).catch(console.error).finally(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    api.cashflow(fyParam, branch).then(setData).catch(console.error).finally(() => setLoading(false));
+  }, [fyParam, branch]);
 
   if (loading) return (
     <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">

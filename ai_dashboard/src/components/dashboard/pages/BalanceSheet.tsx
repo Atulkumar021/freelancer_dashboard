@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useFilters } from "@/contexts/FilterContext";
 import { Download, Landmark, CreditCard, TrendingUp, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -97,13 +98,16 @@ function Group({ title, rows, onRow }: { title: string; rows: any[]; onRow: (l: 
 
 /* ── Main Component ─────────────────────────────────────────────────────── */
 export function BalanceSheet() {
+  const { filters } = useFilters();
+  const fyParam = (() => { const n = parseInt(filters.fy.replace('fy',''),10); const s=2000+n-1; return `${s}-${String(s+1).slice(2)}`; })();
   const [data, setData]       = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { state, open, close } = useDrillDown();
 
   useEffect(() => {
-    api.balanceSheet().then(setData).catch(console.error).finally(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    api.balanceSheet(fyParam).then(setData).catch(console.error).finally(() => setLoading(false));
+  }, [fyParam]);
 
   if (loading) return (
     <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">

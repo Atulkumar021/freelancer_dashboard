@@ -53,19 +53,27 @@ async function apiFetch<T>(path: string, opts?: RequestInit): Promise<T> {
   return r.json() as Promise<T>;
 }
 
+function buildQuery(params: Record<string, string | undefined>): string {
+  const q = Object.entries(params)
+    .filter(([, v]) => v && v !== 'all')
+    .map(([k, v]) => `${k}=${encodeURIComponent(v!)}`)
+    .join('&');
+  return q ? `?${q}` : '';
+}
+
 export const api = {
   meta:          () => apiFetch<any>(`/api/dashboard/${getCompanyId()}/meta`),
-  dashboard:     (fy?: string) => apiFetch<any>(`/api/dashboard/${getCompanyId()}${fy ? `?fy=${fy}` : ''}`),
-  commentary:    (fy?: string) => apiFetch<any>(`/api/commentary/${getCompanyId()}${fy ? `?fy=${fy}` : ''}`),
-  healthScore:   (fy?: string) => apiFetch<any>(`/api/health-score/${getCompanyId()}${fy ? `?fy=${fy}` : ''}`),
-  pnl:           (fy?: string) => apiFetch<any>(`/api/pnl/${getCompanyId()}${fy ? `?fy=${fy}` : ''}`),
-  sales:         (fy?: string) => apiFetch<any>(`/api/sales/${getCompanyId()}${fy ? `?fy=${fy}` : ''}`),
-  purchases:     (fy?: string) => apiFetch<any>(`/api/purchases/${getCompanyId()}${fy ? `?fy=${fy}` : ''}`),
-  cashflow:      (fy?: string) => apiFetch<any>(`/api/cashflow/${getCompanyId()}${fy ? `?fy=${fy}` : ''}`),
-  balanceSheet:  (fy?: string) => apiFetch<any>(`/api/balance-sheet/${getCompanyId()}${fy ? `?fy=${fy}` : ''}`),
-  workingCapital:(fy?: string) => apiFetch<any>(`/api/working-capital/${getCompanyId()}${fy ? `?fy=${fy}` : ''}`),
+  dashboard:     (fy?: string, branch?: string) => apiFetch<any>(`/api/dashboard/${getCompanyId()}${buildQuery({ fy, branch })}`),
+  commentary:    (fy?: string) => apiFetch<any>(`/api/commentary/${getCompanyId()}${buildQuery({ fy })}`),
+  healthScore:   (fy?: string) => apiFetch<any>(`/api/health-score/${getCompanyId()}${buildQuery({ fy })}`),
+  pnl:           (fy?: string, branch?: string) => apiFetch<any>(`/api/pnl/${getCompanyId()}${buildQuery({ fy, branch })}`),
+  sales:         (fy?: string, branch?: string) => apiFetch<any>(`/api/sales/${getCompanyId()}${buildQuery({ fy, branch })}`),
+  purchases:     (fy?: string, branch?: string) => apiFetch<any>(`/api/purchases/${getCompanyId()}${buildQuery({ fy, branch })}`),
+  cashflow:      (fy?: string, branch?: string) => apiFetch<any>(`/api/cashflow/${getCompanyId()}${buildQuery({ fy, branch })}`),
+  balanceSheet:  (fy?: string) => apiFetch<any>(`/api/balance-sheet/${getCompanyId()}${buildQuery({ fy })}`),
+  workingCapital:(fy?: string) => apiFetch<any>(`/api/working-capital/${getCompanyId()}${buildQuery({ fy })}`),
   compliance:    () => apiFetch<any>(`/api/compliance/${getCompanyId()}`),
-  ratios:        (fy?: string) => apiFetch<any>(`/api/ratios/${getCompanyId()}${fy ? `?fy=${fy}` : ''}`),
+  ratios:        (fy?: string) => apiFetch<any>(`/api/ratios/${getCompanyId()}${buildQuery({ fy })}`),
   payroll:       () => apiFetch<any>(`/api/payroll/${getCompanyId()}`),
   taxPlanning:   () => apiFetch<any>(`/api/tax-planning/${getCompanyId()}`),
   advisory:      () => apiFetch<any>(`/api/advisory/${getCompanyId()}`),

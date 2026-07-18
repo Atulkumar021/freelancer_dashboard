@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useFilters } from "@/contexts/FilterContext";
 import {
   Download, Eye, Search, X, FileText, Users, Calendar,
   ShoppingCart, TrendingUp, CreditCard, Clock,
@@ -218,6 +219,9 @@ function AllCreditorsModal({ creditors, onClose }: { creditors: any[]; onClose: 
 
 /* ── Main Component ─────────────────────────────────────────────────────── */
 export function PurchasesPayables() {
+  const { filters } = useFilters();
+  const fyParam = (() => { const n = parseInt(filters.fy.replace('fy',''),10); const s=2000+n-1; return `${s}-${String(s+1).slice(2)}`; })();
+  const branch = filters.branch !== 'all' ? filters.branch : undefined;
   const [data,             setData]             = useState<any>(null);
   const [loading,          setLoading]          = useState(true);
   const [showAllCreditors, setShowAllCreditors] = useState(false);
@@ -225,8 +229,9 @@ export function PurchasesPayables() {
   const [barsIn,           setBarsIn]           = useState(false);
 
   useEffect(() => {
-    api.purchases().then(setData).catch(console.error).finally(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    api.purchases(fyParam, branch).then(setData).catch(console.error).finally(() => setLoading(false));
+  }, [fyParam, branch]);
 
   useEffect(() => {
     if (!loading) {

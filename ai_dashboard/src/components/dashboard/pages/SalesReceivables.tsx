@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useFilters } from "@/contexts/FilterContext";
 import {
   AlertTriangle, Download, Eye, Search, X, FileText, Users,
   IndianRupee, TrendingUp, Wallet, Clock,
@@ -224,6 +225,9 @@ function AllDebtorsModal({ debtors, onClose }: { debtors: any[]; onClose: () => 
 
 /* ── Main Component ─────────────────────────────────────────────────────── */
 export function SalesReceivables() {
+  const { filters } = useFilters();
+  const fyParam = (() => { const n = parseInt(filters.fy.replace('fy',''),10); const s=2000+n-1; return `${s}-${String(s+1).slice(2)}`; })();
+  const branch = filters.branch !== 'all' ? filters.branch : undefined;
   const [data,           setData]           = useState<any>(null);
   const [loading,        setLoading]        = useState(true);
   const [showAllDebtors, setShowAllDebtors] = useState(false);
@@ -231,8 +235,9 @@ export function SalesReceivables() {
   const [barsIn,         setBarsIn]         = useState(false);
 
   useEffect(() => {
-    api.sales().then(setData).catch(console.error).finally(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    api.sales(fyParam, branch).then(setData).catch(console.error).finally(() => setLoading(false));
+  }, [fyParam, branch]);
 
   useEffect(() => {
     if (!loading) {

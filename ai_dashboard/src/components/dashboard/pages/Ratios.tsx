@@ -50,7 +50,7 @@ export function Ratios() {
   const [loading, setLoading]       = useState(true);
 
   useEffect(() => {
-    Promise.all([api.ratios(), api.dashboard(fyParam), api.pnl(), api.balanceSheet()])
+    Promise.all([api.ratios(fyParam), api.dashboard(fyParam), api.pnl(fyParam), api.balanceSheet(fyParam)])
       .then(([r, d, p, b]) => { setRatiosData(r); setDash(d); setPnl(p); setBs(b); })
       .catch(console.error)
       .finally(() => setLoading(false));

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useFilters } from "@/contexts/FilterContext";
 import { Download, IndianRupee, BarChart3, Wallet, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -101,12 +102,16 @@ function KpiTile({ label, value, icon: Icon, hint, tone }: {
 
 /* ── Main Component ─────────────────────────────────────────────────────── */
 export function ProfitLoss() {
+  const { filters } = useFilters();
+  const fyParam = (() => { const n = parseInt(filters.fy.replace('fy',''),10); const s=2000+n-1; return `${s}-${String(s+1).slice(2)}`; })();
+  const branch = filters.branch !== 'all' ? filters.branch : undefined;
   const [data,    setData]    = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.pnl().then(setData).catch(console.error).finally(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    api.pnl(fyParam, branch).then(setData).catch(console.error).finally(() => setLoading(false));
+  }, [fyParam, branch]);
 
   const pnlRows = useMemo(() => {
     if (!data) return [];

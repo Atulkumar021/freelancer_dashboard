@@ -87,12 +87,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.user.companyId) {
       localStorage.setItem(COMPANY_KEY, data.user.companyId);
       setViewingCompanyId(data.user.companyId);
-    } else {
-      localStorage.removeItem(COMPANY_KEY);
-      localStorage.removeItem(CNAME_KEY);
-      setViewingCompanyId(null);
-      setViewingCompanyName(null);
     }
+    // For superadmin (companyId = null), preserve existing company selection so
+    // the dashboard still loads. Superadmin can switch company via the UI.
     setToken(data.token);
     setUser(data.user);
   }, []);
