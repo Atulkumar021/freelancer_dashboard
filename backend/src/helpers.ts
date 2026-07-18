@@ -84,3 +84,16 @@ export function requireAuth(req: Request, res: Response): boolean {
 export function badRequest(res: Response, msg: string): void {
   res.status(400).json({ success: false, error: msg });
 }
+
+/** Returns a MongoDB match fragment for branch/cost-centre filtering.
+ *  Checks the two common Tally rawData locations for branch name. */
+export function branchMatch(branch?: string): Record<string, any> {
+  if (!branch || branch === 'all') return {};
+  return {
+    $or: [
+      { 'rawData.COSTCENTREDETAILS\\.LIST.COSTCENTRENAME': branch },
+      { 'rawData.ALLLEDGERENTRIES\\.LIST.LEDGERNAME': branch },
+      { narration: { $regex: branch, $options: 'i' } },
+    ],
+  };
+}

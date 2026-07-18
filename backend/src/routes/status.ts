@@ -29,7 +29,7 @@ const agentRegistry = new Map<string, AgentRecord>();
 router.post('/ping', async (req: Request, res: Response) => {
   if (!requireAuth(req, res)) return;
 
-  const { companyId, agentVersion = '1.0.0', tallyHost = 'http://localhost:9000' } = req.body;
+  const { companyId, agentVersion = '1.0.0', tallyHost = 'http://localhost:9000', companyName } = req.body;
 
   if (!companyId) {
     res.status(400).json({ success: false, error: 'companyId required' });
@@ -47,9 +47,11 @@ router.post('/ping', async (req: Request, res: Response) => {
   });
 
   // Update company record
+  const companyUpdate: Record<string, any> = { lastSyncAt: new Date(), status: 'active', agentVersion };
+  if (companyName) companyUpdate.name = companyName;
   await Company.findOneAndUpdate(
     { companyId },
-    { $set: { lastSyncAt: new Date(), status: 'active', agentVersion } },
+    { $set: companyUpdate },
     { upsert: true }
   );
 
