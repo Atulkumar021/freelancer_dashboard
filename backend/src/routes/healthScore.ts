@@ -34,8 +34,8 @@ async function computeScore(companyId: string, fyParam?: string) {
   const salesMap  = Object.fromEntries((netProfitA as any[]).map((r) => [r._id, r.total]));
   const gp        = (salesMap['Sales'] ?? 0) - (salesMap['Purchase'] ?? 0);
   const gpPct     = sales > 0 ? (gp / sales) * 100 : 0;
-  const monthSales = sales / 7;
-  const dso = Math.round((debtors / monthSales) * 30);
+  // DSO standard formula: (debtors / annual_sales) * 360
+  const dso = sales > 0 ? Math.round((debtors / sales) * 360) : 0;
   const de  = equity > 0 ? debt / equity : 99;
   const cr  = creditors > 0 ? (debtors + cash) / creditors : 2;
   const totalF   = filings.length || 1;
@@ -47,6 +47,7 @@ async function computeScore(companyId: string, fyParam?: string) {
   const solvScore = Math.min(15, de <= 0.5 ? 15 : de <= 1 ? 12 : de <= 1.5 ? 9 : de <= 2 ? 6 : 3);
   const compScore = Math.min(15, Math.round(((totalF - overdueF) / totalF) * 15));
   const growScore = sales > 0 ? 8 : 4;
+  const monthSales = sales / 12;
   const cfScore   = cash > monthSales * 1.5 ? 5 : cash > monthSales ? 3 : 1;
   const totalScore = profScore + liqScore + effScore + solvScore + compScore + growScore + cfScore;
 

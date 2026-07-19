@@ -30,12 +30,12 @@ const LedgerSchema = new Schema<ILedger>(
     phone:                { type: String },
     email:                { type: String },
     rawData:              { type: Schema.Types.Mixed },
-    syncId:               { type: String, index: true },
+    syncId:               { type: String, index: true, unique: true, sparse: true },
   },
   { timestamps: true, collection: 'ledgers' }
 );
 
-LedgerSchema.index({ companyId: 1, group: 1 });
+LedgerSchema.index({ companyId: 1, group: 1, isDr: 1 });
 LedgerSchema.index({ companyId: 1, name: 1 });
 
 const Ledger: Model<ILedger> =

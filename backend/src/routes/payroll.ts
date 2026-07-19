@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import PayrollRecord from '../models/payrollRecord';
-import { getCurrentFYRange, requireAuth, badRequest } from '../helpers';
+import { getCurrentFYRange, badRequest } from '../helpers';
 
 const router = Router();
 
@@ -21,7 +21,6 @@ router.get('/:companyId', async (req: Request, res: Response) => {
 });
 
 router.post('/:companyId', async (req: Request, res: Response) => {
-  if (!requireAuth(req, res)) return;
   const { companyId } = req.params;
   const { financialYear, month } = req.body;
   if (!financialYear || !month) { badRequest(res, 'financialYear and month required'); return; }
@@ -30,7 +29,6 @@ router.post('/:companyId', async (req: Request, res: Response) => {
 });
 
 router.patch('/:companyId', async (req: Request, res: Response) => {
-  if (!requireAuth(req, res)) return;
   const { companyId } = req.params;
   const { recordId, complianceItem, isPaid, paidDate, challanRef } = req.body;
   if (!recordId || !complianceItem) { badRequest(res, 'recordId and complianceItem required'); return; }

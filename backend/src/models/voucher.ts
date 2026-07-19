@@ -52,7 +52,7 @@ const VoucherSchema = new Schema<IVoucher>(
     items:         { type: [VoucherItemSchema], default: [] },
     gstDetails:    { type: GSTDetailsSchema },
     rawData:       { type: Schema.Types.Mixed },
-    syncId:        { type: String, index: true },
+    syncId:        { type: String, index: true, unique: true, sparse: true },
   },
   { timestamps: true, collection: 'vouchers' }
 );

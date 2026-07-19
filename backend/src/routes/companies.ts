@@ -2,6 +2,9 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import Company from '../models/company';
 import User from '../models/user';
+import Voucher from '../models/voucher';
+import Ledger from '../models/ledger';
+import StockItem from '../models/stock';
 import ActivityLog from '../models/activityLog';
 import { requireJwt, requireRole } from '../middleware/authMiddleware';
 
@@ -45,9 +48,9 @@ router.post('/register', requireJwt, requireRole('superadmin'), async (req: Requ
     return;
   }
 
-  const company   = await Company.create({ companyId, name: orgName, status: 'active' });
+  const company      = await Company.create({ companyId, name: orgName, status: 'active' });
   const passwordHash = await bcrypt.hash(adminPassword, 12);
-  const adminUser = await User.create({
+  const adminUser    = await User.create({
     email: adminEmail.toLowerCase().trim(),
     passwordHash, name: adminName, role: 'admin', companyId, isActive: true,
   });
@@ -96,15 +99,24 @@ router.patch('/:companyId', requireJwt, requireRole('superadmin'), async (req: R
 
 /* ── DELETE /api/companies/:companyId ─────────────────────────────────────── */
 router.delete('/:companyId', requireJwt, requireRole('superadmin'), async (req: Request, res: Response) => {
-  const company = await Company.findOneAndDelete({ companyId: req.params.companyId }).lean();
+  const { companyId } = req.params;
+  const company = await Company.findOneAndDelete({ companyId }).lean();
   if (!company) { res.status(404).json({ success: false, error: 'Company not found' }); return; }
+
+  // Cascade: delete all data belonging to this company
+  await Promise.all([
+    Voucher.deleteMany({ companyId }),
+    Ledger.deleteMany({ companyId }),
+    StockItem.deleteMany({ companyId }),
+    User.deleteMany({ companyId, role: { $ne: 'superadmin' } }),
+  ]);
 
   await ActivityLog.create({
     userId: req.jwtUser!.userId,
     userEmail: req.jwtUser!.email,
     userName: req.jwtUser!.name,
     action: 'delete_company',
-    details: `Deleted organisation: ${req.params.companyId}`,
+    details: `Deleted organisation: ${companyId}`,
     ip: req.ip,
   }).catch(() => {});
 

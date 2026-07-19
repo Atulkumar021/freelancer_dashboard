@@ -1,14 +1,14 @@
 import { Router, Request, Response } from 'express';
 import BudgetItem from '../models/budgetItem';
 import Voucher from '../models/voucher';
-import { getCurrentFYRange, requireAuth, badRequest } from '../helpers';
+import { getActiveFYRange, badRequest } from '../helpers';
 
 const router = Router();
 
 router.get('/:companyId', async (req: Request, res: Response) => {
-  const { companyId } = req.params;
-  const { label: fyLabel, start: fyStart, end: fyEnd } = getCurrentFYRange();
-  const fy = (req.query.fy as string) ?? fyLabel;
+  const companyId = req.params.companyId as string;
+  const fyParam   = req.query.fy as string | undefined;
+  const { label: fy, start: fyStart, end: fyEnd } = await getActiveFYRange(companyId, fyParam);
 
   const [budgetItems, salesByMonth, purchasesByMonth] = await Promise.all([
     BudgetItem.find({ companyId, financialYear: fy }).lean(),
@@ -32,7 +32,6 @@ router.get('/:companyId', async (req: Request, res: Response) => {
 });
 
 router.post('/:companyId', async (req: Request, res: Response) => {
-  if (!requireAuth(req, res)) return;
   const { companyId } = req.params;
   const { financialYear, items } = req.body;
   if (!financialYear || !Array.isArray(items) || !items.length) { badRequest(res, 'financialYear and items[] required'); return; }

@@ -253,7 +253,7 @@ export function BalanceSheet() {
                 { title: "Current Liabilities",     rows: currL },
               ]}
               totalLabel="Total Liabilities & Equity"
-              totalValue={s.totalAssets ?? 0}
+              totalValue={(s.totalLiabilities ?? 0) + (s.netWorth ?? 0)}
               onRow={(l) => open('liabilities', l.name, fmt(l.closingBalance ?? 0))}
             />
           </Panel>

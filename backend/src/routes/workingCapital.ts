@@ -18,8 +18,8 @@ router.get('/:companyId', async (req: Request, res: Response) => {
   const [currAssets, currLiab, debtors, creditors, ledgerStock, stockItems, salesA, purchaseA, odAccounts] = await Promise.all([
     Ledger.find({ companyId, group: { $in: CURR_ASSETS } }).select('closingBalance').lean(),
     Ledger.find({ companyId, group: { $in: CURR_LIAB } }).select('closingBalance').lean(),
-    Ledger.aggregate([{ $match: { companyId, group: 'Sundry Debtors' } }, { $group: { _id: null, t: { $sum: '$closingBalance' } } }]),
-    Ledger.aggregate([{ $match: { companyId, group: 'Sundry Creditors' } }, { $group: { _id: null, t: { $sum: '$closingBalance' } } }]),
+    Ledger.aggregate([{ $match: { companyId, group: 'Sundry Debtors', isDr: true } }, { $group: { _id: null, t: { $sum: '$closingBalance' } } }]),
+    Ledger.aggregate([{ $match: { companyId, group: 'Sundry Creditors', isDr: false } }, { $group: { _id: null, t: { $sum: '$closingBalance' } } }]),
     Ledger.aggregate([{ $match: { companyId, group: 'Stock-in-Hand' } }, { $group: { _id: null, t: { $sum: '$closingBalance' } } }]),
     StockItem.aggregate([{ $match: { companyId } }, { $group: { _id: null, t: { $sum: '$closingStock.amount' } } }]),
     Voucher.aggregate([{ $match: { companyId, voucherType: 'Sales',    date: { $gte: fyStart, $lte: fyEnd } } }, { $group: { _id: null, t: { $sum: '$amount' } } }]),

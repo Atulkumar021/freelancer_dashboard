@@ -1,22 +1,21 @@
 import { Router, Request, Response } from 'express';
 import TaxPlanning from '../models/taxPlanning';
-import { getCurrentFYRange, requireAuth, badRequest } from '../helpers';
+import { getActiveFYRange, badRequest } from '../helpers';
 
 const router = Router();
 
 router.get('/:companyId', async (req: Request, res: Response) => {
-  const { companyId } = req.params;
-  const { label: fyLabel } = getCurrentFYRange();
-  const fy = (req.query.fy as string) ?? fyLabel;
+  const companyId = req.params.companyId as string;
+  const fyParam   = typeof req.query.fy === 'string' ? req.query.fy : undefined;
+  const { label: fy } = await getActiveFYRange(companyId, fyParam);
   const record = await TaxPlanning.findOne({ companyId, financialYear: fy }).lean() as any;
   if (!record) { res.json({ success: true, companyId, financialYear: fy, record: null }); return; }
-  const totalPaid  = (record.advanceTax ?? []).reduce((s: number, i: any) => s + (i.paidAmount ?? 0), 0);
+  const totalPaid   = (record.advanceTax ?? []).reduce((s: number, i: any) => s + (i.paidAmount ?? 0), 0);
   const totalSaving = (record.taxSavingOpportunities ?? []).reduce((s: number, o: any) => s + (o.estimatedSaving ?? 0), 0);
   res.json({ success: true, companyId, financialYear: fy, record, summary: { estimatedTaxLiability: record.estimatedTaxLiability, totalAdvanceTaxPaid: totalPaid, balanceTaxDue: record.estimatedTaxLiability - totalPaid, effectiveTaxRate: record.effectiveTaxRate, totalPotentialSaving: totalSaving } });
 });
 
 router.post('/:companyId', async (req: Request, res: Response) => {
-  if (!requireAuth(req, res)) return;
   const { companyId } = req.params;
   if (!req.body.financialYear) { badRequest(res, 'financialYear required'); return; }
   const record = await TaxPlanning.findOneAndUpdate({ companyId, financialYear: req.body.financialYear }, { $set: { ...req.body, companyId, lastUpdated: new Date() } }, { upsert: true, new: true }).lean();
@@ -24,7 +23,6 @@ router.post('/:companyId', async (req: Request, res: Response) => {
 });
 
 router.patch('/:companyId', async (req: Request, res: Response) => {
-  if (!requireAuth(req, res)) return;
   const { companyId } = req.params;
   const { financialYear, type, instalment, opportunityId, update: upd } = req.body;
   if (!financialYear || !type) { badRequest(res, 'financialYear and type required'); return; }

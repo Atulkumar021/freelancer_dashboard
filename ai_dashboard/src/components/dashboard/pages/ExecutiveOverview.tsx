@@ -430,7 +430,7 @@ export function ExecutiveOverview() {
     if (!getCompanyId()) { setLoading(false); return; }
     setLoading(true);
     const [d, p, ra, h, c] = await Promise.allSettled([
-      api.dashboard(fyParam), api.pnl(), api.ratios(), api.healthScore(), api.commentary(),
+      api.dashboard(fyParam), api.pnl(fyParam), api.ratios(fyParam), api.healthScore(fyParam), api.commentary(),
     ]);
     const dash   = d.status  === 'fulfilled' ? d.value  : null;
     const pnl    = p.status  === 'fulfilled' ? p.value  : null;

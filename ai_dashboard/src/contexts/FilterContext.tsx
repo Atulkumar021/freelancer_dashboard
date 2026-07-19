@@ -17,8 +17,14 @@ export interface DashboardFilters {
   currency: string;
 }
 
+function currentFYCode(): string {
+  const now = new Date();
+  const year = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  return `fy${String(year + 1).slice(2)}`;
+}
+
 export const DEFAULT_FILTERS: DashboardFilters = {
-  fy: 'fy26',
+  fy: currentFYCode(),
   month: 'all',
   dateFrom: '',
   dateTo: '',

@@ -84,17 +84,23 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     // Map Tally raw XML fields → our schema fields
-    const stamped = records.map((r: any) => ({
-      companyId,
-      voucherType: voucherTypeMap[lower],
-      voucherNumber: r.VOUCHERNUMBER || r.voucherNumber || r.number || '',
-      date: parseDate(r.DATE || r.date) || new Date(),
-      partyName: r.PARTYLEDGERNAME || r.partyName || r.party || '',
-      amount: extractVoucherAmount(r),
-      narration: r.NARRATION || r.narration || '',
-      rawData: r,
-      syncId: `${companyId}-${lower}-${r.VOUCHERNUMBER || r.DSPVCHNO || r.voucherNumber || r.number || r.$?.VCHNO || r.$?.REMOTEID || syncId || Date.now()}`,
-    }));
+    const stamped = records.map((r: any, idx: number) => {
+      const vNum = r.VOUCHERNUMBER || r.DSPVCHNO || r.voucherNumber || r.number || r.$?.VCHNO || r.$?.REMOTEID || '';
+      const dateStr = String(r.DATE || r.date || '').replace(/[^0-9]/g, '');
+      const narSlug = String(r.NARRATION || r.narration || '').slice(0, 20).replace(/\s+/g, '_');
+      const fallback = `${dateStr || 'nodate'}-${narSlug || 'nnar'}-${idx}`;
+      return {
+        companyId,
+        voucherType: voucherTypeMap[lower],
+        voucherNumber: vNum,
+        date: parseDate(r.DATE || r.date) || new Date(),
+        partyName: r.PARTYLEDGERNAME || r.partyName || r.party || '',
+        amount: extractVoucherAmount(r),
+        narration: r.NARRATION || r.narration || '',
+        rawData: r,
+        syncId: `${companyId}-${lower}-${vNum || fallback}`,
+      };
+    });
     upserted = await upsertMany(Voucher, stamped);
 
   /* ── Ledgers ──────────────────────────────────────────────────────── */
@@ -104,7 +110,7 @@ router.post('/', async (req: Request, res: Response) => {
       res.json({ success: true, upserted: 0, dataType, message: 'Empty batch acknowledged' });
       return;
     }
-    const stamped = records.map((r: any) => {
+    const stamped = records.map((r: any, idx: number) => {
       // TallyPrime puts ledger NAME as XML attribute → parsed into r.$ by xml2js
       const name = r.NAME || r.name || r.$?.NAME || r.LEDGERNAME || '';
       // Closing balance: may be pre-computed by agent (r.CLOSINGBALANCE)
@@ -123,7 +129,7 @@ router.post('/', async (req: Request, res: Response) => {
         gstin: r.GSTIN || r.gstin || r.$?.GSTIN || '',
         gstRegistrationType: r.GSTREGISTRATIONTYPE || r.gstRegistrationType || '',
         rawData: r,
-        syncId: `${companyId}-ledger-${name || Math.random()}`,
+        syncId: `${companyId}-ledger-${name || 'unnamed-' + idx}`,
       };
     });
     upserted = await upsertMany(Ledger, stamped);
@@ -156,7 +162,7 @@ router.post('/', async (req: Request, res: Response) => {
       reportType: lower,
       period: extractPeriod(timestamp),
       data: Array.isArray(records) ? records : [records],
-      syncId: `${companyId}-${lower}-${timestamp || Date.now()}`,
+      syncId: `${companyId}-${lower}-current`,
     };
     upserted = await upsertMany(FinancialReport, [payload]);
 

@@ -1,6 +1,7 @@
+import mongoose from 'mongoose';
 import { Router, Request, Response } from 'express';
 import AdvisoryAction from '../models/advisoryAction';
-import { requireAuth, badRequest } from '../helpers';
+import { badRequest } from '../helpers';
 
 const router = Router();
 
@@ -20,15 +21,15 @@ router.get('/:companyId', async (req: Request, res: Response) => {
 });
 
 router.post('/:companyId', async (req: Request, res: Response) => {
-  if (!requireAuth(req, res)) return;
   const { companyId } = req.params;
   const { title, category, priority, owner, dueDate, addedBy } = req.body;
   if (!title || !category || !priority || !owner || !dueDate || !addedBy) {
     badRequest(res, 'title, category, priority, owner, dueDate, addedBy required'); return;
   }
-  const count    = await AdvisoryAction.countDocuments({ companyId });
-  const actionId = `ADV-${String(count + 1).padStart(3, '0')}`;
-  const action   = await AdvisoryAction.create({ ...req.body, companyId, actionId, addedOn: new Date(), status: req.body.status ?? 'Open' });
+  // Generate atomic unique actionId from MongoDB ObjectId (no race condition)
+  const _id      = new mongoose.Types.ObjectId();
+  const actionId = `ADV-${_id.toString().slice(-6).toUpperCase()}`;
+  const action   = await AdvisoryAction.create({ _id, ...req.body, companyId, actionId, addedOn: new Date(), status: req.body.status ?? 'Open' });
   res.status(201).json({ success: true, action });
 });
 
@@ -40,7 +41,6 @@ router.get('/:companyId/:id', async (req: Request, res: Response) => {
 });
 
 router.patch('/:companyId/:id', async (req: Request, res: Response) => {
-  if (!requireAuth(req, res)) return;
   const { companyId, id } = req.params;
   const body = req.body;
   if (body.status === 'Done' && !body.closedDate) body.closedDate = new Date();
@@ -50,7 +50,6 @@ router.patch('/:companyId/:id', async (req: Request, res: Response) => {
 });
 
 router.delete('/:companyId/:id', async (req: Request, res: Response) => {
-  if (!requireAuth(req, res)) return;
   const { companyId, id } = req.params;
   const deleted = await AdvisoryAction.findOneAndDelete({ $or: [{ _id: id }, { actionId: id }], companyId });
   if (!deleted) { res.status(404).json({ success: false, error: 'Not found' }); return; }

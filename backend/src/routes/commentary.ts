@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import Commentary from '../models/commentary';
-import { requireAuth, badRequest } from '../helpers';
+import { badRequest } from '../helpers';
 
 const router = Router();
 
@@ -14,8 +14,7 @@ router.get('/:companyId', async (req: Request, res: Response) => {
 });
 
 router.post('/:companyId', async (req: Request, res: Response) => {
-  if (!requireAuth(req, res)) return;
-  const { companyId } = req.params;
+    const { companyId } = req.params;
   const { financialYear, month, period, executiveSummary, preparedBy } = req.body;
   if (!financialYear || !month || !period || !executiveSummary || !preparedBy) {
     badRequest(res, 'financialYear, month, period, executiveSummary, preparedBy required'); return;
@@ -36,8 +35,7 @@ router.get('/:companyId/:id', async (req: Request, res: Response) => {
 });
 
 router.patch('/:companyId/:id', async (req: Request, res: Response) => {
-  if (!requireAuth(req, res)) return;
-  const { companyId, id } = req.params;
+    const { companyId, id } = req.params;
   const body = req.body;
   if (body.isPublished && !body.publishedOn) body.publishedOn = new Date();
   const commentary = await Commentary.findOneAndUpdate({ _id: id, companyId }, { $set: body }, { new: true }).lean();
@@ -47,8 +45,7 @@ router.patch('/:companyId/:id', async (req: Request, res: Response) => {
 
 /* Update a single action item status */
 router.put('/:companyId/:id/action', async (req: Request, res: Response) => {
-  if (!requireAuth(req, res)) return;
-  const { companyId, id } = req.params;
+    const { companyId, id } = req.params;
   const { actionId, status, closedDate } = req.body;
   if (!actionId) { badRequest(res, 'actionId required'); return; }
   const updated = await Commentary.findOneAndUpdate(
@@ -61,8 +58,7 @@ router.put('/:companyId/:id/action', async (req: Request, res: Response) => {
 });
 
 router.delete('/:companyId/:id', async (req: Request, res: Response) => {
-  if (!requireAuth(req, res)) return;
-  const { companyId, id } = req.params;
+    const { companyId, id } = req.params;
   const deleted = await Commentary.findOneAndDelete({ _id: id, companyId });
   if (!deleted) { res.status(404).json({ success: false, error: 'Not found' }); return; }
   res.json({ success: true, message: 'Deleted' });

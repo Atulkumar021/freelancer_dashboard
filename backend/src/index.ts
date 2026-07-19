@@ -1,7 +1,18 @@
 import 'dotenv/config';
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { connectDB } from './db';
+
+// Fail fast on missing critical secrets
+if (!process.env.JWT_SECRET) {
+  console.error('[FATAL] JWT_SECRET is not set in environment. Refusing to start.');
+  process.exit(1);
+}
+
+// Prevent unhandled promise rejections from crashing the process
+process.on('unhandledRejection', (reason) => {
+  console.error('[UnhandledRejection]', reason);
+});
 
 import authRouter          from './routes/auth';
 import syncRouter          from './routes/sync';
@@ -92,6 +103,12 @@ app.use('/api/advisory',        requireJwt, requireCompanyAccess, advisoryRouter
 
 /* ── 404 catch-all ──────────────────────────────────────────────────────── */
 app.use((_req, res) => res.status(404).json({ success: false, error: 'Route not found' }));
+
+/* ── Global error handler (catches async throws from all routes) ─────────── */
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('[Server Error]', err?.message ?? err);
+  res.status(500).json({ success: false, error: 'Internal server error' });
+});
 
 /* ── Start ──────────────────────────────────────────────────────────────── */
 async function start() {

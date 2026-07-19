@@ -85,8 +85,7 @@ router.get('/:companyId', async (req: Request, res: Response) => {
   const totalReceivables  = (receivablesAgg[0] as any)?.total ?? 0;
   const totalPayables     = (payablesAgg[0] as any)?.total    ?? 0;
   const totalInventory    = (inventoryValue[0] as any)?.total  ?? 0;
-  const lastMonthSales    = (salesByMonth.at(-1) as any)?.total ?? 1;
-  const dso               = Math.round((totalReceivables / lastMonthSales) * 30);
+  const dso               = totalSalesYTD > 0 ? Math.round((totalReceivables / totalSalesYTD) * 360) : 0;
 
   res.json({
     success: true, companyId, company: companyInfo, lastSyncAt: (companyInfo as any)?.lastSyncAt ?? null,

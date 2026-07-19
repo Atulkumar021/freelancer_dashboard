@@ -117,7 +117,11 @@ router.patch('/users/:id', requireJwt, requireRole('superadmin', 'admin', 'owner
   if (companyId && req.jwtUser!.role === 'superadmin') update.companyId = companyId;
   if (password) update.passwordHash = await bcrypt.hash(password, 12);
 
-  const user = await User.findByIdAndUpdate(req.params.id, { $set: update }, { new: true }).lean();
+  // Non-superadmin can only update users within their own company
+  const filter = req.jwtUser!.role === 'superadmin'
+    ? { _id: req.params.id }
+    : { _id: req.params.id, companyId: req.jwtUser!.companyId };
+  const user = await User.findOneAndUpdate(filter, { $set: update }, { new: true }).lean();
   if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
   res.json({ success: true, user: safeUser(user) });
 });
