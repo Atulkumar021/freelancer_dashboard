@@ -166,9 +166,9 @@ export function Alerts() {
     const alreadyResolved = new Set(combined.filter(i => i.status === 'resolved').map(i => i.id));
     setResolvedIds(alreadyResolved);
     setLoading(false);
-  }, []);
+  }, [fyParam]);
 
-  useEffect(() => { load(); }, [load, fyParam]);
+  useEffect(() => { load(); }, [load]);
 
   const toggleResolved = async (id: string) => {
     setResolvedIds(prev => {

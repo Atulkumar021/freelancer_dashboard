@@ -212,9 +212,9 @@ export function AiCfoHome() {
       d?.lastSyncAt != null,
     );
     setLoading(false);
-  }, []);
+  }, [fyParam]);
 
-  useEffect(() => { load(); }, [load, fyParam]);
+  useEffect(() => { load(); }, [load]);
 
   const companyLabel = viewingCompanyName ?? dashData?.company?.name ?? '';
 

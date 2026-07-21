@@ -199,9 +199,9 @@ export function Insights() {
     if (cm.status  === 'fulfilled') setCommData(cm.value);
     if (adv.status === 'fulfilled') setAdvisory(adv.value);
     setLoading(false);
-  }, []);
+  }, [fyParam]);
 
-  useEffect(() => { load(); }, [load, fyParam]);
+  useEffect(() => { load(); }, [load]);
 
   if (loading) {
     return (

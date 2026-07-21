@@ -430,7 +430,7 @@ export function ExecutiveOverview() {
     if (!getCompanyId()) { setLoading(false); return; }
     setLoading(true);
     const [d, p, ra, h, c] = await Promise.allSettled([
-      api.dashboard(fyParam), api.pnl(fyParam), api.ratios(fyParam), api.healthScore(fyParam), api.commentary(),
+      api.dashboard(fyParam), api.pnl(fyParam), api.ratios(fyParam), api.healthScore(fyParam), api.commentary(fyParam),
     ]);
     const dash   = d.status  === 'fulfilled' ? d.value  : null;
     const pnl    = p.status  === 'fulfilled' ? p.value  : null;
@@ -448,9 +448,9 @@ export function ExecutiveOverview() {
       !!dash?.lastSyncAt
     );
     setLoading(false);
-  }, []);
+  }, [fyParam]);
 
-  useEffect(() => { load(); }, [load, fyParam]);
+  useEffect(() => { load(); }, [load]);
 
   /* ── Loading ── */
   if (loading) {
